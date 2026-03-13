@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "WebFetch(domain:apps.apple.com)",
+      "WebFetch(domain:play.google.com)",
+      "WebFetch(domain:aitoolsexplorer.com)",
+      "WebFetch(domain:themarketingcrowd.ie)",
+      "WebFetch(domain:sarahrenaeclark.com)",
+      "Bash(npx expo:*)",
+      "Bash(find /c/Users/User/projetos/brainrot-coloring-lab/src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.json\" \\\\\\) 2>/dev/null | sort)",
+      "Bash(grep -n \"^  },$\" /c/Users/User/projetos/brainrot-coloring-lab/src/i18n/translations.ts)"
+    ]
+  }
+}
