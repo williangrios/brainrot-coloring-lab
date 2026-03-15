@@ -75,11 +75,15 @@ export interface PageRegionData {
   paths: Record<string, string>
   ellipses: Record<string, { cx: number; cy: number; rx: number; ry: number }>
   hitOrder: string[]
+  bgRegions: Set<string>  // regions where drawing is not allowed (fill only)
 }
 
+const BUTTERFLY_BG = new Set(['bg', 'grass'])
+const DINO_BG = new Set(['sky', 'ground'])
+
 const PAGE_REGION_DATA: Record<string, PageRegionData> = {
-  img1: { paths: BUTTERFLY_PATHS, ellipses: BUTTERFLY_ELLIPSES, hitOrder: BUTTERFLY_HIT_ORDER },
-  img2: { paths: DINO_PATHS, ellipses: DINO_ELLIPSES, hitOrder: DINO_HIT_ORDER },
+  img1: { paths: BUTTERFLY_PATHS, ellipses: BUTTERFLY_ELLIPSES, hitOrder: BUTTERFLY_HIT_ORDER, bgRegions: BUTTERFLY_BG },
+  img2: { paths: DINO_PATHS, ellipses: DINO_ELLIPSES, hitOrder: DINO_HIT_ORDER, bgRegions: DINO_BG },
 }
 
 export function getPageRegionData(pageId: string): PageRegionData | null {

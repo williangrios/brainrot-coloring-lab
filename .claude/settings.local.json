@@ -16,7 +16,8 @@
       "WebFetch(domain:github.com)",
       "Bash(cd \"C:/Users/User/projetos/brainrot-coloring-lab\" && mv src/features/painting/pages/index.ts src/features/painting/pages/index.tsx)",
       "Bash(grep -r \"fillRule\\\\|clipRule\\\\|evenodd\" node_modules/react-native-svg/lib/typescript/elements/*.d.ts 2>/dev/null | head -10)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

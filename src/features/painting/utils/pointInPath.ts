@@ -1,12 +1,13 @@
 // Flatten an SVG path d-string into an array of [x, y] points (polygon approximation)
-// Supports: M, L, H, V, C, Q, A, Z (absolute only — our SVG data uses absolute coords)
 
 type Point = [number, number]
 
-function cubicBezier(p0: Point, p1: Point, p2: Point, p3: Point, steps: number): Point[] {
+const CURVE_STEPS = 24
+
+function cubicBezier(p0: Point, p1: Point, p2: Point, p3: Point): Point[] {
   const pts: Point[] = []
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps
+  for (let i = 1; i <= CURVE_STEPS; i++) {
+    const t = i / CURVE_STEPS
     const u = 1 - t
     const x = u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0]
     const y = u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]
@@ -15,10 +16,10 @@ function cubicBezier(p0: Point, p1: Point, p2: Point, p3: Point, steps: number):
   return pts
 }
 
-function quadBezier(p0: Point, p1: Point, p2: Point, steps: number): Point[] {
+function quadBezier(p0: Point, p1: Point, p2: Point): Point[] {
   const pts: Point[] = []
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps
+  for (let i = 1; i <= CURVE_STEPS; i++) {
+    const t = i / CURVE_STEPS
     const u = 1 - t
     const x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0]
     const y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]
@@ -27,14 +28,84 @@ function quadBezier(p0: Point, p1: Point, p2: Point, steps: number): Point[] {
   return pts
 }
 
-function arcToPoints(
-  cx: number, cy: number, rx: number, ry: number,
-  startAngle: number, endAngle: number, steps: number
+// Convert SVG arc parameters to center parameterization, then sample points
+function arcToSampledPoints(
+  x1: number, y1: number,
+  rx: number, ry: number,
+  xRotation: number,
+  largeArc: number,
+  sweep: number,
+  x2: number, y2: number,
 ): Point[] {
+  // Handle degenerate cases
+  if (rx === 0 || ry === 0) return [[x2, y2]]
+
+  rx = Math.abs(rx)
+  ry = Math.abs(ry)
+
+  const phi = (xRotation * Math.PI) / 180
+  const cosPhi = Math.cos(phi)
+  const sinPhi = Math.sin(phi)
+
+  // Step 1: compute (x1', y1')
+  const dx = (x1 - x2) / 2
+  const dy = (y1 - y2) / 2
+  const x1p = cosPhi * dx + sinPhi * dy
+  const y1p = -sinPhi * dx + cosPhi * dy
+
+  // Step 2: compute (cx', cy')
+  let rxSq = rx * rx
+  let rySq = ry * ry
+  const x1pSq = x1p * x1p
+  const y1pSq = y1p * y1p
+
+  // Ensure radii are large enough
+  const lambda = x1pSq / rxSq + y1pSq / rySq
+  if (lambda > 1) {
+    const s = Math.sqrt(lambda)
+    rx *= s
+    ry *= s
+    rxSq = rx * rx
+    rySq = ry * ry
+  }
+
+  let sq = Math.max(0, (rxSq * rySq - rxSq * y1pSq - rySq * x1pSq) / (rxSq * y1pSq + rySq * x1pSq))
+  let root = Math.sqrt(sq)
+  if (largeArc === sweep) root = -root
+
+  const cxp = root * (rx * y1p) / ry
+  const cyp = root * (-(ry * x1p) / rx)
+
+  // Step 3: compute (cx, cy)
+  const cx = cosPhi * cxp - sinPhi * cyp + (x1 + x2) / 2
+  const cy = sinPhi * cxp + cosPhi * cyp + (y1 + y2) / 2
+
+  // Step 4: compute angles
+  const angle = (ux: number, uy: number, vx: number, vy: number) => {
+    const n = Math.sqrt(ux * ux + uy * uy)
+    const p = Math.sqrt(vx * vx + vy * vy)
+    const sign = ux * vy - uy * vx < 0 ? -1 : 1
+    const dot = (ux * vx + uy * vy) / (n * p)
+    return sign * Math.acos(Math.max(-1, Math.min(1, dot)))
+  }
+
+  const theta1 = angle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry)
+  let dtheta = angle(
+    (x1p - cxp) / rx, (y1p - cyp) / ry,
+    (-x1p - cxp) / rx, (-y1p - cyp) / ry
+  )
+
+  if (sweep === 0 && dtheta > 0) dtheta -= 2 * Math.PI
+  if (sweep === 1 && dtheta < 0) dtheta += 2 * Math.PI
+
+  // Sample points along the arc
+  const steps = Math.max(CURVE_STEPS, Math.ceil(Math.abs(dtheta) / (Math.PI / 12)))
   const pts: Point[] = []
-  for (let i = 0; i <= steps; i++) {
-    const angle = startAngle + (endAngle - startAngle) * (i / steps)
-    pts.push([cx + rx * Math.cos(angle), cy + ry * Math.sin(angle)])
+  for (let i = 1; i <= steps; i++) {
+    const t = theta1 + (dtheta * i) / steps
+    const xr = rx * Math.cos(t)
+    const yr = ry * Math.sin(t)
+    pts.push([cosPhi * xr - sinPhi * yr + cx, sinPhi * xr + cosPhi * yr + cy])
   }
   return pts
 }
@@ -44,7 +115,6 @@ export function flattenSvgPath(d: string): Point[] {
   let cx = 0, cy = 0
   let startX = 0, startY = 0
 
-  // Tokenize: split into commands and numbers
   const tokens = d.match(/[MLHVCQAZmlhvcqaz]|[-+]?[\d]*\.?\d+(?:[eE][-+]?\d+)?/g)
   if (!tokens) return points
 
@@ -60,7 +130,6 @@ export function flattenSvgPath(d: string): Point[] {
           cx = num(); cy = num()
           startX = cx; startY = cy
           points.push([cx, cy])
-          // Implicit L after M
           while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
             cx = num(); cy = num()
             points.push([cx, cy])
@@ -88,28 +157,35 @@ export function flattenSvgPath(d: string): Point[] {
           }
           break
         case 'H':
-          cx = num()
-          points.push([cx, cy])
+          while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
+            cx = num()
+            points.push([cx, cy])
+          }
           break
         case 'h':
-          cx += num()
-          points.push([cx, cy])
+          while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
+            cx += num()
+            points.push([cx, cy])
+          }
           break
         case 'V':
-          cy = num()
-          points.push([cx, cy])
+          while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
+            cy = num()
+            points.push([cx, cy])
+          }
           break
         case 'v':
-          cy += num()
-          points.push([cx, cy])
+          while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
+            cy += num()
+            points.push([cx, cy])
+          }
           break
         case 'C':
           while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
             const x1 = num(), y1 = num()
             const x2 = num(), y2 = num()
             const x = num(), y = num()
-            const bezPts = cubicBezier([cx, cy], [x1, y1], [x2, y2], [x, y], 8)
-            points.push(...bezPts)
+            points.push(...cubicBezier([cx, cy], [x1, y1], [x2, y2], [x, y]))
             cx = x; cy = y
           }
           break
@@ -118,8 +194,7 @@ export function flattenSvgPath(d: string): Point[] {
             const x1 = cx + num(), y1 = cy + num()
             const x2 = cx + num(), y2 = cy + num()
             const x = cx + num(), y = cy + num()
-            const bezPts = cubicBezier([cx, cy], [x1, y1], [x2, y2], [x, y], 8)
-            points.push(...bezPts)
+            points.push(...cubicBezier([cx, cy], [x1, y1], [x2, y2], [x, y]))
             cx = x; cy = y
           }
           break
@@ -127,34 +202,41 @@ export function flattenSvgPath(d: string): Point[] {
           while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
             const x1 = num(), y1 = num()
             const x = num(), y = num()
-            const qPts = quadBezier([cx, cy], [x1, y1], [x, y], 8)
-            points.push(...qPts)
+            points.push(...quadBezier([cx, cy], [x1, y1], [x, y]))
             cx = x; cy = y
           }
           break
-        case 'a': case 'A': {
-          // Simplified arc handling — approximate as ellipse segment
+        case 'q':
           while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
-            const rx = num(), ry = num()
-            const _xRotation = num()
-            const _largeArc = num()
-            const _sweep = num()
-            const ex = cmd === 'A' ? num() : cx + num()
-            const ey = cmd === 'A' ? num() : cy + num()
-            // Simple line approximation for arcs (good enough for hit testing)
-            const midX = (cx + ex) / 2
-            const midY = (cy + ey) / 2 - Math.max(rx, ry) * 0.5
-            points.push([midX, midY], [ex, ey])
+            const x1 = cx + num(), y1 = cy + num()
+            const x = cx + num(), y = cy + num()
+            points.push(...quadBezier([cx, cy], [x1, y1], [x, y]))
+            cx = x; cy = y
+          }
+          break
+        case 'A':
+          while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
+            const arx = num(), ary = num()
+            const xRot = num(), la = num(), sw = num()
+            const ex = num(), ey = num()
+            points.push(...arcToSampledPoints(cx, cy, arx, ary, xRot, la, sw, ex, ey))
             cx = ex; cy = ey
           }
           break
-        }
+        case 'a':
+          while (i < tokens.length && /^[-+\d.]/.test(tokens[i])) {
+            const arx = num(), ary = num()
+            const xRot = num(), la = num(), sw = num()
+            const ex = cx + num(), ey = cy + num()
+            points.push(...arcToSampledPoints(cx, cy, arx, ary, xRot, la, sw, ex, ey))
+            cx = ex; cy = ey
+          }
+          break
         case 'Z': case 'z':
           cx = startX; cy = startY
           break
       }
     } else {
-      // Number without command — skip
       i++
     }
   }

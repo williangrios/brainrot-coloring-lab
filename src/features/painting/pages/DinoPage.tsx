@@ -10,7 +10,10 @@ export const DINO_REGIONS = [
 ]
 
 const DinoPage: React.FC<ColoringPageProps> = ({ width, height, regionColors, onRegionPress, outlineOnly }) => {
-  const fill = (id: string) => outlineOnly ? 'none' : (regionColors[id] || 'white')
+  const fill = (id: string) => {
+    if (outlineOnly) return 'none'
+    return regionColors[id] || 'white'
+  }
   const press = (id: string) => () => outlineOnly ? undefined : onRegionPress?.(id)
 
   return (

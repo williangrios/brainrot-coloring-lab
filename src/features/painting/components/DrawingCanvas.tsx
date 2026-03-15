@@ -1,6 +1,6 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react'
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { View, PanResponder, StyleSheet } from 'react-native'
-import Svg, { Path, Defs, G, ClipPath, Mask, Rect } from 'react-native-svg'
+import Svg, { Path, Defs, G, ClipPath, Mask, Rect, Circle as SvgCircle, Ellipse as SvgEllipse } from 'react-native-svg'
 import { ToolType, TOOL_RENDER_CONFIG } from '../data/tools'
 import { PageRegionData } from '../pages/regionPaths'
 import { flattenSvgPath, pointInPolygon, pointInEllipse, ellipseToPath } from '../utils/pointInPath'
@@ -118,319 +118,7 @@ function generateFuzzyStrands(mainPoints: string[], strandCount: number): string
 const SCATTER_TOOLS = new Set(['spray', 'glitter', 'airbrush'])
 const PATH_TOOLS = new Set(['brush', 'eraser', 'crayon', 'thick_pencil', 'laser', 'neon', 'watercolor', 'flat_brush', 'marker', 'fine_tip'])
 
-// Get the path d-string for a region (path or ellipse)
-function getRegionPathD(id: string, regionData: PageRegionData): string | null {
-  if (regionData.ellipses[id]) {
-    const e = regionData.ellipses[id]
-    return ellipseToPath(e.cx, e.cy, e.rx, e.ry)
-  }
-  if (regionData.paths[id]) {
-    return regionData.paths[id]
-  }
-  return null
-}
-
-// Build a compound clip path for a region.
-// For regions that have higher-priority regions on top,
-// we combine the region's path with all higher regions' paths.
-// Using fillRule="evenodd", overlapping areas become holes.
-function buildCompoundClipPath(hitIndex: number, regionData: PageRegionData): string {
-  const { hitOrder } = regionData
-  const hitId = hitOrder[hitIndex]
-  let compound = getRegionPathD(hitId, regionData) || ''
-
-  // Add all regions above this one (they'll be subtracted via evenodd)
-  for (let j = hitIndex + 1; j < hitOrder.length; j++) {
-    const aboveId = hitOrder[j]
-    const abovePath = getRegionPathD(aboveId, regionData)
-    if (abovePath) {
-      compound += ' ' + abovePath
-    }
-  }
-
-  return compound
-}
-
-// Hit test: find which region contains the point (topmost wins)
-function hitTestRegion(
-  x: number, y: number,
-  regionData: PageRegionData
-): { regionId: string; clipPathD: string } | null {
-  const { paths, ellipses, hitOrder } = regionData
-
-  // Test in reverse order (topmost first)
-  for (let i = hitOrder.length - 1; i >= 0; i--) {
-    const id = hitOrder[i]
-
-    // Check ellipses first
-    if (ellipses[id]) {
-      const e = ellipses[id]
-      if (pointInEllipse(x, y, e.cx, e.cy, e.rx, e.ry)) {
-        return { regionId: id, clipPathD: buildCompoundClipPath(i, regionData) }
-      }
-    }
-
-    // Check paths
-    if (paths[id]) {
-      const polygon = flattenSvgPath(paths[id])
-      if (polygon.length >= 3 && pointInPolygon(x, y, polygon)) {
-        return { regionId: id, clipPathD: buildCompoundClipPath(i, regionData) }
-      }
-    }
-  }
-
-  return null
-}
-
-const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
-  width, height, tool, color, brushSize, strokes, onStrokeComplete, enabled, regionData, onDrawStart, onDrawEnd,
-}) => {
-  const currentPoints = useRef<string[]>([])
-  const currentScatterD = useRef<string>('')
-  const [livePathD, setLivePathD] = useState<string | null>(null)
-  const [liveScatterD, setLiveScatterD] = useState<string | null>(null)
-  const [liveClipId, setLiveClipId] = useState<string | null>(null)
-  const [liveClipPathD, setLiveClipPathD] = useState<string | null>(null)
-
-  const toolRef = useRef(tool)
-  const colorRef = useRef(color)
-  const brushSizeRef = useRef(brushSize)
-  const enabledRef = useRef(enabled)
-  const onStrokeCompleteRef = useRef(onStrokeComplete)
-  const widthRef = useRef(width)
-  const heightRef = useRef(height)
-  const regionDataRef = useRef(regionData)
-  const onDrawStartRef = useRef(onDrawStart)
-  const onDrawEndRef = useRef(onDrawEnd)
-  const clipRegionIdRef = useRef<string | null>(null)
-  const clipPathDRef = useRef<string | null>(null)
-
-  useEffect(() => { toolRef.current = tool }, [tool])
-  useEffect(() => { colorRef.current = color }, [color])
-  useEffect(() => { brushSizeRef.current = brushSize }, [brushSize])
-  useEffect(() => { enabledRef.current = enabled }, [enabled])
-  useEffect(() => { onStrokeCompleteRef.current = onStrokeComplete }, [onStrokeComplete])
-  useEffect(() => { widthRef.current = width }, [width])
-  useEffect(() => { heightRef.current = height }, [height])
-  useEffect(() => { regionDataRef.current = regionData }, [regionData])
-  useEffect(() => { onDrawStartRef.current = onDrawStart }, [onDrawStart])
-  useEffect(() => { onDrawEndRef.current = onDrawEnd }, [onDrawEnd])
-
-  const isOutOfBounds = useCallback((evt: any) => {
-    const { locationX, locationY } = evt.nativeEvent
-    const m = 5
-    return locationX < m || locationX > widthRef.current - m ||
-           locationY < m || locationY > heightRef.current - m
-  }, [])
-
-  const toViewBox = useCallback((evt: any) => {
-    const margin = 2
-    const px = Math.max(margin, Math.min(widthRef.current - margin, evt.nativeEvent.locationX))
-    const py = Math.max(margin, Math.min(heightRef.current - margin, evt.nativeEvent.locationY))
-    const x = (px / widthRef.current) * VB_W
-    const y = (py / heightRef.current) * VB_H
-    return { x, y }
-  }, [])
-
-  const drawingActive = useRef(false)
-
-  const finishStroke = useCallback(() => {
-    if (!drawingActive.current) return
-    drawingActive.current = false
-    onDrawEndRef.current?.()
-    const t = toolRef.current
-    const c = colorRef.current
-    const bs = brushSizeRef.current
-    const cfg = TOOL_RENDER_CONFIG[t]
-    const clipId = clipRegionIdRef.current || undefined
-    const clipD = clipPathDRef.current || undefined
-
-    if (SCATTER_TOOLS.has(t)) {
-      if (currentScatterD.current.length > 0) {
-        onStrokeCompleteRef.current({
-          type: t,
-          pathD: currentScatterD.current,
-          color: c,
-          opacity: cfg?.opacity ?? 0.6,
-          clipRegionId: clipId,
-          clipPathD: clipD,
-        } as ScatterStroke)
-      }
-      currentScatterD.current = ''
-      setLiveScatterD(null)
-    } else if (t === 'fuzzy') {
-      if (currentPoints.current.length > 0) {
-        const strands = generateFuzzyStrands(currentPoints.current, cfg?.strandCount ?? 6)
-        onStrokeCompleteRef.current({
-          type: 'fuzzy',
-          strands,
-          color: c,
-          width: Math.max(1, bs * 0.15),
-          opacity: cfg?.opacity ?? 0.6,
-          clipRegionId: clipId,
-          clipPathD: clipD,
-        } as FuzzyStroke)
-      }
-      currentPoints.current = []
-      setLivePathD(null)
-    } else {
-      if (currentPoints.current.length > 0) {
-        const effectiveWidth = t === 'eraser' ? bs * 2 : bs
-        onStrokeCompleteRef.current({
-          type: t,
-          points: currentPoints.current.join(' '),
-          color: t === 'eraser' ? 'white' : c,
-          width: effectiveWidth,
-          opacity: cfg?.opacity ?? 0.8,
-          strokeLinecap: cfg?.strokeLinecap ?? 'round',
-          strokeLinejoin: cfg?.strokeLinejoin ?? 'round',
-          strokeDasharray: cfg?.strokeDasharray,
-          glowWidth: cfg?.glowWidth,
-          glowOpacity: cfg?.glowOpacity,
-          clipRegionId: clipId,
-          clipPathD: clipD,
-        } as PathStroke)
-      }
-      currentPoints.current = []
-      setLivePathD(null)
-    }
-    clipRegionIdRef.current = null
-    clipPathDRef.current = null
-    setLiveClipId(null)
-    setLiveClipPathD(null)
-  }, [])
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => enabledRef.current,
-      onMoveShouldSetPanResponder: () => enabledRef.current,
-      onPanResponderTerminationRequest: () => false,
-      onShouldBlockNativeResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        const { x, y } = toViewBox(evt)
-        const t = toolRef.current
-
-        // Hit test to find which region we're in
-        // If touch starts outside all regions, block drawing entirely
-        if (regionDataRef.current) {
-          const hit = hitTestRegion(x, y, regionDataRef.current)
-          if (hit) {
-            clipRegionIdRef.current = hit.regionId
-            clipPathDRef.current = hit.clipPathD
-            setLiveClipId(hit.regionId)
-            setLiveClipPathD(hit.clipPathD)
-          } else {
-            // Touch started outside any region — don't draw
-            drawingActive.current = false
-            return
-          }
-        }
-
-        drawingActive.current = true
-        onDrawStartRef.current?.()
-
-        if (SCATTER_TOOLS.has(t)) {
-          const d = t === 'glitter'
-            ? generateGlitter(x, y, brushSizeRef.current)
-            : generateScatter(x, y, brushSizeRef.current, t === 'airbrush' ? 'gaussian' : 'uniform')
-          currentScatterD.current = d
-          setLiveScatterD(d)
-        } else {
-          currentPoints.current = [`M${x.toFixed(1)},${y.toFixed(1)}`]
-          setLivePathD(`M${x.toFixed(1)},${y.toFixed(1)}`)
-        }
-      },
-      onPanResponderMove: (evt) => {
-        if (!drawingActive.current) return
-        if (isOutOfBounds(evt)) { finishStroke(); return }
-        const { x, y } = toViewBox(evt)
-        const t = toolRef.current
-        if (SCATTER_TOOLS.has(t)) {
-          const d = t === 'glitter'
-            ? generateGlitter(x, y, brushSizeRef.current)
-            : generateScatter(x, y, brushSizeRef.current, t === 'airbrush' ? 'gaussian' : 'uniform')
-          currentScatterD.current += d
-          setLiveScatterD(currentScatterD.current)
-        } else {
-          currentPoints.current.push(`L${x.toFixed(1)},${y.toFixed(1)}`)
-          setLivePathD(currentPoints.current.join(' '))
-        }
-      },
-      onPanResponderRelease: () => { finishStroke() },
-      onPanResponderTerminate: () => { finishStroke() },
-    })
-  ).current
-
-  // Collect unique clip paths from strokes
-  const clipPaths = new Map<string, string>()
-  strokes.forEach((s) => {
-    const clipId = (s as any).clipRegionId
-    const clipD = (s as any).clipPathD
-    if (clipId && clipD) {
-      clipPaths.set(clipId, clipD)
-    }
-  })
-
-  // Group strokes by clip region
-  const unclippedStrokes: { stroke: Stroke; idx: number }[] = []
-  const clippedGroups = new Map<string, { stroke: Stroke; idx: number }[]>()
-
-  strokes.forEach((s, i) => {
-    const clipId = (s as any).clipRegionId
-    if (clipId) {
-      if (!clippedGroups.has(clipId)) clippedGroups.set(clipId, [])
-      clippedGroups.get(clipId)!.push({ stroke: s, idx: i })
-    } else {
-      unclippedStrokes.push({ stroke: s, idx: i })
-    }
-  })
-
-  return (
-    <View style={[styles.container, { width, height }]}>
-      <Svg width={width} height={height} viewBox={`0 0 ${VB_W} ${VB_H}`} style={styles.svgLayer}>
-        <Defs>
-          {/* Clip paths for each region */}
-          {Array.from(clipPaths.entries()).map(([id, d]) => (
-            <ClipPath key={`clip-${id}`} id={`clip-${id}`}>
-              <Path d={d} fillRule="evenodd" />
-            </ClipPath>
-          ))}
-          {/* Live clip path */}
-          {liveClipId && liveClipPathD && (
-            <ClipPath id="clip-live">
-              <Path d={liveClipPathD} fillRule="evenodd" />
-            </ClipPath>
-          )}
-        </Defs>
-
-        {/* Render clipped stroke groups */}
-        {Array.from(clippedGroups.entries()).map(([regionId, items]) => (
-          <G key={`cg-${regionId}`} clipPath={`url(#clip-${regionId})`}>
-            {items.map(({ stroke, idx }) => renderStroke(stroke, idx))}
-          </G>
-        ))}
-
-        {/* Render unclipped strokes */}
-        {unclippedStrokes.map(({ stroke, idx }) => renderStroke(stroke, idx))}
-
-        {/* Live preview — clipped if we have a region */}
-        {liveClipId ? (
-          <G clipPath="url(#clip-live)">
-            {renderLivePreview(livePathD, liveScatterD, tool, color, brushSize)}
-          </G>
-        ) : (
-          renderLivePreview(livePathD, liveScatterD, tool, color, brushSize)
-        )}
-      </Svg>
-
-      <View
-        style={styles.touchLayer}
-        {...panResponder.panHandlers}
-        pointerEvents={enabled ? 'auto' : 'none'}
-      />
-    </View>
-  )
-}
+// --- Stroke rendering helpers (used by both committed layer and live preview) ---
 
 function renderStroke(stroke: Stroke, index: number) {
   if ((stroke as FuzzyStroke).type === 'fuzzy') {
@@ -547,6 +235,360 @@ function renderLivePreview(
   }
 
   return null
+}
+
+// --- Committed strokes layer (React.memo — only re-renders when strokes change) ---
+
+interface CommittedStrokesLayerProps {
+  strokes: Stroke[]
+  regionData?: PageRegionData | null
+  width: number
+  height: number
+  buildMaskElements: (regionId: string) => React.ReactNode[] | null
+}
+
+const CommittedStrokesLayer = React.memo<CommittedStrokesLayerProps>(({ strokes, regionData, width, height, buildMaskElements }) => {
+  if (strokes.length === 0) return null
+
+  // Group strokes by clipRegionId
+  const groups: Record<string, { indices: number[] }> = {}
+  const unclipped: number[] = []
+
+  strokes.forEach((s, i) => {
+    const clipId = (s as any).clipRegionId as string | undefined
+    if (clipId) {
+      if (!groups[clipId]) groups[clipId] = { indices: [] }
+      groups[clipId].indices.push(i)
+    } else {
+      unclipped.push(i)
+    }
+  })
+
+  const regionIds = Object.keys(groups)
+
+  return (
+    <Svg width={width} height={height} viewBox={`0 0 ${VB_W} ${VB_H}`} style={committedStyles.svgLayer}>
+      <Defs>
+        {regionIds.map((rid) => {
+          const maskEls = buildMaskElements(rid)
+          if (!maskEls) return null
+          return (
+            <Mask key={rid} id={`mask-c-${rid}`} maskUnits="userSpaceOnUse" x="0" y="0" width={VB_W} height={VB_H}>
+              {maskEls}
+            </Mask>
+          )
+        })}
+      </Defs>
+
+      {/* Unclipped strokes */}
+      {unclipped.length > 0 && (
+        <G>
+          {unclipped.map((i) => renderStroke(strokes[i], i))}
+        </G>
+      )}
+
+      {/* Clipped stroke groups */}
+      {regionIds.map((rid) => (
+        <G key={rid} mask={`url(#mask-c-${rid})`}>
+          {groups[rid].indices.map((i) => renderStroke(strokes[i], i))}
+        </G>
+      ))}
+    </Svg>
+  )
+})
+
+const committedStyles = StyleSheet.create({
+  svgLayer: { position: 'absolute' as const, top: 0, left: 0 },
+})
+
+// Hit test: find which region contains the point (topmost wins)
+function hitTestRegion(
+  x: number, y: number,
+  regionData: PageRegionData
+): { regionId: string; clipPathD: string } | null {
+  const { paths, ellipses, hitOrder } = regionData
+
+  // Test in reverse order (topmost first)
+  for (let i = hitOrder.length - 1; i >= 0; i--) {
+    const id = hitOrder[i]
+
+    if (ellipses[id]) {
+      const e = ellipses[id]
+      if (pointInEllipse(x, y, e.cx, e.cy, e.rx, e.ry)) {
+        return { regionId: id, clipPathD: ellipseToPath(e.cx, e.cy, e.rx, e.ry) }
+      }
+    }
+
+    if (paths[id]) {
+      const polygon = flattenSvgPath(paths[id])
+      if (polygon.length >= 3 && pointInPolygon(x, y, polygon)) {
+        return { regionId: id, clipPathD: paths[id] }
+      }
+    }
+  }
+
+  return null
+}
+
+const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
+  width, height, tool, color, brushSize, strokes, onStrokeComplete, enabled, regionData, onDrawStart, onDrawEnd,
+}) => {
+  const currentPoints = useRef<string[]>([])
+  const currentScatterD = useRef<string>('')
+  const [livePathD, setLivePathD] = useState<string | null>(null)
+  const [liveScatterD, setLiveScatterD] = useState<string | null>(null)
+  const [liveClipId, setLiveClipId] = useState<string | null>(null)
+  const [liveClipPathD, setLiveClipPathD] = useState<string | null>(null)
+
+  const toolRef = useRef(tool)
+  const colorRef = useRef(color)
+  const brushSizeRef = useRef(brushSize)
+  const enabledRef = useRef(enabled)
+  const onStrokeCompleteRef = useRef(onStrokeComplete)
+  const widthRef = useRef(width)
+  const heightRef = useRef(height)
+  const regionDataRef = useRef(regionData)
+  const onDrawStartRef = useRef(onDrawStart)
+  const onDrawEndRef = useRef(onDrawEnd)
+  const clipRegionIdRef = useRef<string | null>(null)
+  const clipPathDRef = useRef<string | null>(null)
+
+  useEffect(() => { toolRef.current = tool }, [tool])
+  useEffect(() => { colorRef.current = color }, [color])
+  useEffect(() => { brushSizeRef.current = brushSize }, [brushSize])
+  useEffect(() => { enabledRef.current = enabled }, [enabled])
+  useEffect(() => { onStrokeCompleteRef.current = onStrokeComplete }, [onStrokeComplete])
+  useEffect(() => { widthRef.current = width }, [width])
+  useEffect(() => { heightRef.current = height }, [height])
+  useEffect(() => { regionDataRef.current = regionData }, [regionData])
+  useEffect(() => { onDrawStartRef.current = onDrawStart }, [onDrawStart])
+  useEffect(() => { onDrawEndRef.current = onDrawEnd }, [onDrawEnd])
+
+  const isOutOfBounds = useCallback((evt: any) => {
+    const { locationX, locationY } = evt.nativeEvent
+    const m = 5
+    return locationX < m || locationX > widthRef.current - m ||
+           locationY < m || locationY > heightRef.current - m
+  }, [])
+
+  const toViewBox = useCallback((evt: any) => {
+    const margin = 2
+    const px = Math.max(margin, Math.min(widthRef.current - margin, evt.nativeEvent.locationX))
+    const py = Math.max(margin, Math.min(heightRef.current - margin, evt.nativeEvent.locationY))
+    const x = (px / widthRef.current) * VB_W
+    const y = (py / heightRef.current) * VB_H
+    return { x, y }
+  }, [])
+
+  const drawingActive = useRef(false)
+
+  // Emit the current segment as a completed stroke (without ending the gesture)
+  const emitSegment = useCallback(() => {
+    const t = toolRef.current
+    const c = colorRef.current
+    const bs = brushSizeRef.current
+    const cfg = TOOL_RENDER_CONFIG[t]
+    const clipId = clipRegionIdRef.current || undefined
+    const clipD = clipPathDRef.current || undefined
+
+    if (SCATTER_TOOLS.has(t)) {
+      if (currentScatterD.current.length > 0) {
+        onStrokeCompleteRef.current({
+          type: t,
+          pathD: currentScatterD.current,
+          color: c,
+          opacity: cfg?.opacity ?? 0.6,
+          clipRegionId: clipId,
+          clipPathD: clipD,
+        } as ScatterStroke)
+      }
+      currentScatterD.current = ''
+    } else if (t === 'fuzzy') {
+      if (currentPoints.current.length > 1) {
+        const strands = generateFuzzyStrands(currentPoints.current, cfg?.strandCount ?? 6)
+        onStrokeCompleteRef.current({
+          type: 'fuzzy',
+          strands,
+          color: c,
+          width: Math.max(1, bs * 0.15),
+          opacity: cfg?.opacity ?? 0.6,
+          clipRegionId: clipId,
+          clipPathD: clipD,
+        } as FuzzyStroke)
+      }
+      currentPoints.current = []
+    } else {
+      if (currentPoints.current.length > 1) {
+        const effectiveWidth = t === 'eraser' ? bs * 2 : bs
+        onStrokeCompleteRef.current({
+          type: t,
+          points: currentPoints.current.join(' '),
+          color: t === 'eraser' ? 'white' : c,
+          width: effectiveWidth,
+          opacity: cfg?.opacity ?? 0.8,
+          strokeLinecap: cfg?.strokeLinecap ?? 'round',
+          strokeLinejoin: cfg?.strokeLinejoin ?? 'round',
+          strokeDasharray: cfg?.strokeDasharray,
+          glowWidth: cfg?.glowWidth,
+          glowOpacity: cfg?.glowOpacity,
+          clipRegionId: clipId,
+          clipPathD: clipD,
+        } as PathStroke)
+      }
+      currentPoints.current = []
+    }
+  }, [])
+
+  const finishStroke = useCallback(() => {
+    if (!drawingActive.current) return
+    drawingActive.current = false
+    onDrawEndRef.current?.()
+    emitSegment()
+    currentScatterD.current = ''
+    currentPoints.current = []
+    setLivePathD(null)
+    setLiveScatterD(null)
+    clipRegionIdRef.current = null
+    clipPathDRef.current = null
+    setLiveClipId(null)
+    setLiveClipPathD(null)
+  }, [emitSegment])
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => enabledRef.current,
+      onMoveShouldSetPanResponder: () => enabledRef.current,
+      onPanResponderTerminationRequest: () => !drawingActive.current,
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        const { x, y } = toViewBox(evt)
+        const t = toolRef.current
+
+        // Hit test: every region gets a mask (no bgRegions exception)
+        if (regionDataRef.current) {
+          const hit = hitTestRegion(x, y, regionDataRef.current)
+          if (hit) {
+            clipRegionIdRef.current = hit.regionId
+            clipPathDRef.current = hit.clipPathD
+            setLiveClipId(hit.regionId)
+            setLiveClipPathD(hit.clipPathD)
+          } else {
+            clipRegionIdRef.current = null
+            clipPathDRef.current = null
+            setLiveClipId(null)
+            setLiveClipPathD(null)
+          }
+        }
+
+        drawingActive.current = true
+        onDrawStartRef.current?.()
+
+        if (SCATTER_TOOLS.has(t)) {
+          const d = t === 'glitter'
+            ? generateGlitter(x, y, brushSizeRef.current)
+            : generateScatter(x, y, brushSizeRef.current, t === 'airbrush' ? 'gaussian' : 'uniform')
+          currentScatterD.current = d
+          setLiveScatterD(d)
+        } else {
+          currentPoints.current = [`M${x.toFixed(1)},${y.toFixed(1)}`]
+          setLivePathD(`M${x.toFixed(1)},${y.toFixed(1)}`)
+        }
+      },
+      onPanResponderMove: (evt) => {
+        if (!drawingActive.current) return
+        if (isOutOfBounds(evt)) { finishStroke(); return }
+        const { x, y } = toViewBox(evt)
+        const t = toolRef.current
+
+        if (SCATTER_TOOLS.has(t)) {
+          const d = t === 'glitter'
+            ? generateGlitter(x, y, brushSizeRef.current)
+            : generateScatter(x, y, brushSizeRef.current, t === 'airbrush' ? 'gaussian' : 'uniform')
+          currentScatterD.current += d
+          setLiveScatterD(currentScatterD.current)
+        } else {
+          currentPoints.current.push(`L${x.toFixed(1)},${y.toFixed(1)}`)
+          setLivePathD(currentPoints.current.join(' '))
+        }
+      },
+      onPanResponderRelease: () => { finishStroke() },
+      onPanResponderTerminate: () => { finishStroke() },
+    })
+  ).current
+
+  // Build mask elements for a single region
+  const buildMaskElements = useCallback((regionId: string): React.ReactNode[] | null => {
+    if (!regionData) return null
+    const { paths, ellipses, hitOrder } = regionData
+    const index = hitOrder.indexOf(regionId)
+    if (index === -1) return null
+
+    const elements: React.ReactNode[] = []
+
+    // White: this region's shape
+    if (ellipses[regionId]) {
+      const e = ellipses[regionId]
+      elements.push(<SvgEllipse key="w" cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry}
+        fill="white" stroke="white" strokeWidth={3} />)
+    } else if (paths[regionId]) {
+      elements.push(<Path key="w" d={paths[regionId]} fill="white" stroke="white" strokeWidth={3} />)
+    }
+
+    // Black: all regions with higher hitOrder index
+    for (let j = index + 1; j < hitOrder.length; j++) {
+      const subId = hitOrder[j]
+      if (ellipses[subId]) {
+        const e = ellipses[subId]
+        elements.push(<SvgEllipse key={subId} cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry}
+          fill="black" stroke="black" strokeWidth={3} />)
+      } else if (paths[subId]) {
+        elements.push(<Path key={subId} d={paths[subId]} fill="black" stroke="black" strokeWidth={3} />)
+      }
+    }
+
+    return elements
+  }, [regionData])
+
+  // Live mask elements (stable during drawing — only changes when liveClipId changes)
+  const liveMaskElements = useMemo(() => {
+    if (!liveClipId) return null
+    return buildMaskElements(liveClipId)
+  }, [liveClipId, buildMaskElements])
+
+  return (
+    <View style={[styles.container, { width, height }]}>
+      {/* Layer A: Committed strokes — only re-renders when strokes change */}
+      <CommittedStrokesLayer
+        strokes={strokes}
+        regionData={regionData}
+        width={width}
+        height={height}
+        buildMaskElements={buildMaskElements}
+      />
+
+      {/* Layer B: Live preview — lightweight, re-renders during drawing */}
+      {(livePathD || liveScatterD) && (
+        <Svg width={width} height={height} viewBox={`0 0 ${VB_W} ${VB_H}`} style={styles.svgLayer}>
+          {liveMaskElements && (
+            <Defs>
+              <Mask id="mask-live" maskUnits="userSpaceOnUse" x="0" y="0" width={VB_W} height={VB_H}>
+                {liveMaskElements}
+              </Mask>
+            </Defs>
+          )}
+          <G mask={liveMaskElements ? 'url(#mask-live)' : undefined}>
+            {renderLivePreview(livePathD, liveScatterD, tool, color, brushSize)}
+          </G>
+        </Svg>
+      )}
+
+      <View
+        style={styles.touchLayer}
+        {...panResponder.panHandlers}
+        pointerEvents={enabled ? 'auto' : 'none'}
+      />
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({

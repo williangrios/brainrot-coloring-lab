@@ -51,25 +51,66 @@ export default function PaintingScreen() {
   const [isDrawing, setIsDrawing] = useState(false)
   const [brushSliderDismissed, setBrushSliderDismissed] = useState(false)
 
-  // Pinch-to-zoom
-  const baseScale = useRef(new Animated.Value(1)).current
-  const pinchScale = useRef(new Animated.Value(1)).current
+  // Pinch-to-zoom with focal point
+  const scaleVal = useRef(new Animated.Value(1)).current
+  const translateX = useRef(new Animated.Value(0)).current
+  const translateY = useRef(new Animated.Value(0)).current
   const lastScale = useRef(1)
-  const scale = Animated.multiply(baseScale, pinchScale)
+  const lastTranslateX = useRef(0)
+  const lastTranslateY = useRef(0)
+  const pinchFocalX = useRef(0)
+  const pinchFocalY = useRef(0)
 
-  const onPinchEvent = Animated.event(
-    [{ nativeEvent: { scale: pinchScale } }],
-    { useNativeDriver: true }
-  )
+  const onPinchEvent = useCallback((event: any) => {
+    const { scale, focalX, focalY } = event.nativeEvent
+    const clampedScale = Math.min(5, Math.max(1, lastScale.current * scale))
+
+    // On first move, capture focal point
+    if (pinchFocalX.current === 0 && pinchFocalY.current === 0) {
+      pinchFocalX.current = focalX
+      pinchFocalY.current = focalY
+    }
+
+    // Translate so zoom centers on focal point
+    const fx = pinchFocalX.current
+    const fy = pinchFocalY.current
+    const ds = clampedScale / lastScale.current
+    const newTx = lastTranslateX.current + fx * (1 - ds)
+    const newTy = lastTranslateY.current + fy * (1 - ds)
+
+    scaleVal.setValue(clampedScale)
+    translateX.setValue(newTx)
+    translateY.setValue(newTy)
+  }, [scaleVal, translateX, translateY])
 
   const onPinchStateChange = useCallback((event: any) => {
     if (event.nativeEvent.oldState === GestureState.ACTIVE) {
-      const newScale = Math.min(5, Math.max(1, lastScale.current * event.nativeEvent.scale))
-      lastScale.current = newScale
-      baseScale.setValue(newScale)
-      pinchScale.setValue(1)
+      const finalScale = Math.min(5, Math.max(1, lastScale.current * event.nativeEvent.scale))
+
+      if (finalScale <= 1.05) {
+        // Reset to default
+        lastScale.current = 1
+        lastTranslateX.current = 0
+        lastTranslateY.current = 0
+        scaleVal.setValue(1)
+        translateX.setValue(0)
+        translateY.setValue(0)
+      } else {
+        const fx = pinchFocalX.current
+        const fy = pinchFocalY.current
+        const ds = finalScale / lastScale.current
+        lastTranslateX.current = lastTranslateX.current + fx * (1 - ds)
+        lastTranslateY.current = lastTranslateY.current + fy * (1 - ds)
+        lastScale.current = finalScale
+        scaleVal.setValue(finalScale)
+        translateX.setValue(lastTranslateX.current)
+        translateY.setValue(lastTranslateY.current)
+      }
+
+      pinchFocalX.current = 0
+      pinchFocalY.current = 0
     }
-  }, [baseScale, pinchScale])
+  }, [scaleVal, translateX, translateY])
 
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < history.length - 1
@@ -111,7 +152,6 @@ export default function PaintingScreen() {
     addRecentColor(c)
   }, [addRecentColor])
 
-  // Fill tool: tap a region to fill it
   const handleRegionPress = useCallback((regionId: string) => {
     if (!isFillTool) return
     const newColors = { ...regionColors, [regionId]: selectedColor }
@@ -119,7 +159,6 @@ export default function PaintingScreen() {
     pushHistory(newColors, strokes)
   }, [isFillTool, regionColors, selectedColor, strokes, pushHistory])
 
-  // Drawing tools: stroke complete
   const handleStrokeComplete = useCallback((stroke: Stroke) => {
     const newStrokes = [...strokes, stroke]
     setStrokes(newStrokes)
@@ -197,9 +236,12 @@ export default function PaintingScreen() {
               onHandlerStateChange={onPinchStateChange}
               enabled={!isDrawing}
             >
-              <Animated.View style={[styles.canvasCenter, { transform: [{ scale }] }]}>
+              <Animated.View style={[
+                styles.canvasCenter,
+                { transform: [{ translateX }, { translateY }, { scale: scaleVal }] },
+              ]}>
                 <View style={{ width: canvasSize.w, height: canvasSize.h, backgroundColor: '#fff', borderRadius: 4, overflow: 'hidden' }}>
-                  {/* Layer 1: SVG coloring page with region fills */}
+                  {/* Layer 1: SVG with fills + outlines */}
                   <ColoringPageRenderer
                     pageId={pageId}
                     width={canvasSize.w}
@@ -207,7 +249,7 @@ export default function PaintingScreen() {
                     regionColors={regionColors}
                     onRegionPress={isFillTool ? handleRegionPress : undefined}
                   />
-                  {/* Layer 2: Drawing strokes overlay */}
+                  {/* Layer 2: Drawing strokes (clipped per region) */}
                   <View style={StyleSheet.absoluteFill} pointerEvents={isDrawingTool ? 'auto' : 'none'}>
                     <DrawingCanvas
                       width={canvasSize.w}
@@ -221,6 +263,16 @@ export default function PaintingScreen() {
                       regionData={regionData}
                       onDrawStart={handleDrawStart}
                       onDrawEnd={handleDrawEnd}
+                    />
+                  </View>
+                  {/* Layer 3: SVG outlines on top — protects contours from eraser */}
+                  <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <ColoringPageRenderer
+                      pageId={pageId}
+                      width={canvasSize.w}
+                      height={canvasSize.h}
+                      regionColors={{}}
+                      outlineOnly
                     />
                   </View>
                 </View>
