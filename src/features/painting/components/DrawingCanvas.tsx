@@ -97,20 +97,84 @@ function generateGlitter(x: number, y: number, radius: number): string {
   return d
 }
 
-function generateFuzzyStrands(mainPoints: string[], strandCount: number): string[] {
+interface Point { x: number; y: number }
+
+// Build smooth SVG path using quadratic Bézier curves through midpoints
+function buildSmoothPath(pts: Point[]): string {
+  if (pts.length === 0) return ''
+  if (pts.length === 1) return `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`
+
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`
+
+  if (pts.length === 2) {
+    d += `L${pts[1].x.toFixed(1)},${pts[1].y.toFixed(1)}`
+    return d
+  }
+
+  // First segment: line to midpoint between p0 and p1
+  const mid0x = (pts[0].x + pts[1].x) / 2
+  const mid0y = (pts[0].y + pts[1].y) / 2
+  d += `L${mid0x.toFixed(1)},${mid0y.toFixed(1)}`
+
+  // Middle segments: quadratic Bézier with actual point as control, midpoint as endpoint
+  for (let i = 1; i < pts.length - 1; i++) {
+    const midX = (pts[i].x + pts[i + 1].x) / 2
+    const midY = (pts[i].y + pts[i + 1].y) / 2
+    d += `Q${pts[i].x.toFixed(1)},${pts[i].y.toFixed(1)} ${midX.toFixed(1)},${midY.toFixed(1)}`
+  }
+
+  // Last segment: line to final point
+  const last = pts[pts.length - 1]
+  d += `L${last.x.toFixed(1)},${last.y.toFixed(1)}`
+
+  return d
+}
+
+// Incremental smooth path: append only the new tail (from prevLen onward)
+function appendSmoothPath(pts: Point[], prevD: string, prevLen: number): string {
+  const n = pts.length
+  if (n <= prevLen) return prevD
+  if (n <= 1) return `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`
+
+  // If prevLen < 2, just rebuild (rare: only on first move)
+  if (prevLen < 2) return buildSmoothPath(pts)
+
+  // We need to redo from prevLen-1 because the last segment changes
+  // Strip the old tail (last L segment) and recompute from prevLen-1
+  // For simplicity and correctness, rebuild the tail from the midpoint before prevLen-1
+  let d = prevD
+
+  // Remove the trailing "L..." (the old last-point line segment)
+  const lastL = d.lastIndexOf('L')
+  if (lastL > 0 && prevLen >= 3) {
+    d = d.substring(0, lastL)
+  }
+
+  // Re-emit from prevLen-1 (the last control point that was "final" before)
+  const start = Math.max(1, prevLen - 1)
+  for (let i = start; i < n - 1; i++) {
+    const midX = (pts[i].x + pts[i + 1].x) / 2
+    const midY = (pts[i].y + pts[i + 1].y) / 2
+    d += `Q${pts[i].x.toFixed(1)},${pts[i].y.toFixed(1)} ${midX.toFixed(1)},${midY.toFixed(1)}`
+  }
+
+  // Final point
+  const last = pts[n - 1]
+  d += `L${last.x.toFixed(1)},${last.y.toFixed(1)}`
+
+  return d
+}
+
+function generateFuzzyStrands(mainPoints: Point[], strandCount: number): string[] {
   const strands: string[] = []
   for (let s = 0; s < strandCount; s++) {
     const offsetX = (Math.random() - 0.5) * 12
     const offsetY = (Math.random() - 0.5) * 12
-    const strand = mainPoints.map((p) => {
-      const match = p.match(/([ML])([\d.-]+),([\d.-]+)/)
-      if (!match) return p
-      const cmd = match[1]
-      const x = parseFloat(match[2]) + offsetX + (Math.random() - 0.5) * 4
-      const y = parseFloat(match[3]) + offsetY + (Math.random() - 0.5) * 4
-      return `${cmd}${x.toFixed(1)},${y.toFixed(1)}`
-    }).join(' ')
-    strands.push(strand)
+    const strandPts = mainPoints.map((p) => ({
+      x: p.x + offsetX + (Math.random() - 0.5) * 4,
+      y: p.y + offsetY + (Math.random() - 0.5) * 4,
+    }))
+    strands.push(buildSmoothPath(strandPts))
   }
   return strands
 }
@@ -333,7 +397,8 @@ function hitTestRegion(
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   width, height, tool, color, brushSize, strokes, onStrokeComplete, enabled, regionData, onDrawStart, onDrawEnd,
 }) => {
-  const currentPoints = useRef<string[]>([])
+  const currentPoints = useRef<Point[]>([])
+  const currentPathD = useRef<string>('')  // cached smooth path string
   const currentScatterD = useRef<string>('')
   const [livePathD, setLivePathD] = useState<string | null>(null)
   const [liveScatterD, setLiveScatterD] = useState<string | null>(null)
@@ -417,12 +482,13 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         } as FuzzyStroke)
       }
       currentPoints.current = []
+      currentPathD.current = ''
     } else {
       if (currentPoints.current.length > 1) {
         const effectiveWidth = t === 'eraser' ? bs * 2 : bs
         onStrokeCompleteRef.current({
           type: t,
-          points: currentPoints.current.join(' '),
+          points: buildSmoothPath(currentPoints.current),
           color: t === 'eraser' ? 'white' : c,
           width: effectiveWidth,
           opacity: cfg?.opacity ?? 0.8,
@@ -436,6 +502,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         } as PathStroke)
       }
       currentPoints.current = []
+      currentPathD.current = ''
     }
   }, [])
 
@@ -446,6 +513,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     emitSegment()
     currentScatterD.current = ''
     currentPoints.current = []
+    currentPathD.current = ''
     setLivePathD(null)
     setLiveScatterD(null)
     clipRegionIdRef.current = null
@@ -490,8 +558,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           currentScatterD.current = d
           setLiveScatterD(d)
         } else {
-          currentPoints.current = [`M${x.toFixed(1)},${y.toFixed(1)}`]
-          setLivePathD(`M${x.toFixed(1)},${y.toFixed(1)}`)
+          currentPoints.current = [{ x, y }]
+          const d = `M${x.toFixed(1)},${y.toFixed(1)}`
+          currentPathD.current = d
+          setLivePathD(d)
         }
       },
       onPanResponderMove: (evt) => {
@@ -507,8 +577,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           currentScatterD.current += d
           setLiveScatterD(currentScatterD.current)
         } else {
-          currentPoints.current.push(`L${x.toFixed(1)},${y.toFixed(1)}`)
-          setLivePathD(currentPoints.current.join(' '))
+          const prevLen = currentPoints.current.length
+          currentPoints.current.push({ x, y })
+          const d = appendSmoothPath(currentPoints.current, currentPathD.current, prevLen)
+          currentPathD.current = d
+          setLivePathD(d)
         }
       },
       onPanResponderRelease: () => { finishStroke() },
