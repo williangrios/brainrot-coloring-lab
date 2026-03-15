@@ -15,12 +15,12 @@ export interface ToolDef {
 }
 
 // Tools that support user-adjustable opacity (premium feature)
-export const OPACITY_TOOLS = new Set<ToolType>(['brush', 'crayon', 'marker', 'fine_tip', 'flat_brush'])
+export const OPACITY_TOOLS = new Set<ToolType>(['brush', 'marker', 'fine_tip', 'flat_brush'])
 
 export const TOOLS: ToolDef[] = [
   { id: 'fill', nameKey: 'tool_fill', emoji: '🪣', isDrawingTool: false, hasBrushSize: false, hasOpacity: false },
   { id: 'brush', nameKey: 'tool_brush', emoji: '🖌️', isDrawingTool: true, hasBrushSize: true, hasOpacity: true },
-  { id: 'crayon', nameKey: 'tool_crayon', emoji: '🖍️', isDrawingTool: true, hasBrushSize: true, hasOpacity: true },
+  { id: 'crayon', nameKey: 'tool_crayon', emoji: '🖍️', isDrawingTool: true, hasBrushSize: true, hasOpacity: false },
   { id: 'marker', nameKey: 'tool_marker', emoji: '🖊️', isDrawingTool: true, hasBrushSize: true, hasOpacity: true },
   { id: 'thick_pencil', nameKey: 'tool_thick_pencil', emoji: '✏️', isDrawingTool: true, hasBrushSize: false, hasOpacity: false, fixedBrushSize: 20 },
   { id: 'fine_tip', nameKey: 'tool_fine_tip', emoji: '🔖', isDrawingTool: true, hasBrushSize: false, hasOpacity: true, fixedBrushSize: 2 },
@@ -54,10 +54,10 @@ export interface ToolRenderConfig {
 export const TOOL_RENDER_CONFIG: Record<string, ToolRenderConfig> = {
   brush:        { opacity: 0.8, strokeLinecap: 'round', strokeLinejoin: 'round' },
   eraser:       { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round' },
-  crayon:       { opacity: 0.7, strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: '4,2,1,2' },
+  crayon:       { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: '4,2,1,2' },
   thick_pencil: { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round' },
   fine_tip:     { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round' },
-  marker:       { opacity: 0.5, strokeLinecap: 'square', strokeLinejoin: 'round' },
+  marker:       { opacity: 1.0, strokeLinecap: 'square', strokeLinejoin: 'round' },
   flat_brush:   { opacity: 0.85, strokeLinecap: 'butt', strokeLinejoin: 'miter' },
   laser:        { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round', glowWidth: 12, glowOpacity: 0.3 },
   neon:         { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round', glowWidth: 20, glowOpacity: 0.25 },

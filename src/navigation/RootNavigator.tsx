@@ -2,8 +2,10 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../core/types/navigation';
 import LanguageSelectScreen from '../features/onboarding/LanguageSelectScreen';
+import EmailScreen from '../features/onboarding/EmailScreen';
 import OnboardingScreen from '../features/onboarding/OnboardingScreen';
 import SubscriptionScreen from '../features/subscription/SubscriptionScreen';
+import RatingScreen from '../features/rating/RatingScreen';
 import PaintingScreen from '../features/painting/PaintingScreen';
 import FinalizationScreen from '../features/painting/FinalizationScreen';
 import TabNavigator from './TabNavigator';
@@ -17,9 +19,11 @@ export default function RootNavigator() {
       initialRouteName="LanguageSelect"
     >
       <Stack.Screen name="LanguageSelect" component={LanguageSelectScreen} />
+      <Stack.Screen name="Email" component={EmailScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="Rating" component={RatingScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Painting" component={PaintingScreen} />
       <Stack.Screen name="Finalization" component={FinalizationScreen} />
     </Stack.Navigator>

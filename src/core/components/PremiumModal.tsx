@@ -24,6 +24,8 @@ export default function PremiumModal({ visible, onClose, onSubscribe }: PremiumM
             <Text style={styles.feature}>{t('allDifficulties')}</Text>
             <Text style={styles.feature}>{t('noWatermark')}</Text>
             <Text style={styles.feature}>{t('allPalettes')}</Text>
+            <Text style={styles.feature}>{t('allToolsUnlocked')}</Text>
+            <Text style={styles.feature}>{t('noAds')}</Text>
           </View>
 
           <TouchableOpacity style={styles.subscribeBtn} onPress={onSubscribe}>

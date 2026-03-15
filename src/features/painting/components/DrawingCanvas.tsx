@@ -281,21 +281,43 @@ function renderStroke(stroke: Stroke, index: number) {
     )
   }
 
-  // Brush tool: render as multiple parallel bristle strands for realistic paint effect
-  if (ps.type === 'brush' && ps.width >= 6) {
+  // Brush tool: full round stroke with visible edge bristles
+  if (ps.type === 'brush' && ps.width >= 4) {
+    const edgeBristles: React.ReactNode[] = []
+    const bristleW = Math.max(1, ps.width * 0.12)
+    const edgeOffsets = [-0.52, -0.42, -0.32, 0.32, 0.42, 0.52]
+    for (let b = 0; b < edgeOffsets.length; b++) {
+      const offsetX = edgeOffsets[b] * ps.width
+      const offsetY = edgeOffsets[b] * ps.width * 0.25
+      edgeBristles.push(
+        <Path key={`e${b}`} d={ps.points} stroke={ps.color} strokeWidth={bristleW}
+          fill="none" strokeLinecap="round" strokeLinejoin="round"
+          opacity={ps.opacity * 0.6}
+          transform={`translate(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`} />
+      )
+    }
+    return (
+      <G key={index}>
+        <Path d={ps.points} stroke={ps.color} strokeWidth={ps.width}
+          fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={ps.opacity} />
+        {edgeBristles}
+      </G>
+    )
+  }
+
+  // Flat brush: parallel bristle strands for flat paint streaks
+  if (ps.type === 'flat_brush' && ps.width >= 6) {
     const bristleCount = Math.max(5, Math.round(ps.width / 2))
     const bristles: React.ReactNode[] = []
     const bristleW = Math.max(1.5, ps.width / bristleCount * 1.4)
     for (let b = 0; b < bristleCount; b++) {
-      // Spread bristles across the brush width
-      const t = (b / (bristleCount - 1)) - 0.5  // -0.5 to 0.5
+      const t = (b / (bristleCount - 1)) - 0.5
       const offsetX = t * ps.width * 0.85
       const offsetY = t * ps.width * 0.15
-      // Vary opacity per bristle for natural look
       const bOpacity = ps.opacity * (0.5 + Math.abs(Math.sin(b * 2.7)) * 0.5)
       bristles.push(
         <Path key={b} d={ps.points} stroke={ps.color} strokeWidth={bristleW}
-          fill="none" strokeLinecap="round" strokeLinejoin="round"
+          fill="none" strokeLinecap="butt" strokeLinejoin="miter"
           opacity={bOpacity}
           transform={`translate(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`} />
       )
@@ -327,8 +349,26 @@ function renderLivePreview(
   if (livePathD && PATH_TOOLS.has(tool)) {
     const w = brushSize
 
-    // Brush live preview with bristles
-    if (tool === 'brush' && w >= 6) {
+    // Brush live preview: full round + visible edge bristles
+    if (tool === 'brush' && w >= 4) {
+      const bristleW = Math.max(1, w * 0.12)
+      const edgeOffsets = [-0.52, -0.42, -0.32, 0.32, 0.42, 0.52]
+      return (
+        <G>
+          <Path d={livePathD} stroke={color} strokeWidth={w}
+            fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={cfg?.opacity ?? 0.8} />
+          {edgeOffsets.map((offset, b) => (
+            <Path key={b} d={livePathD} stroke={color} strokeWidth={bristleW}
+              fill="none" strokeLinecap="round" strokeLinejoin="round"
+              opacity={(cfg?.opacity ?? 0.8) * 0.6}
+              transform={`translate(${(offset * w).toFixed(1)}, ${(offset * w * 0.25).toFixed(1)})`} />
+          ))}
+        </G>
+      )
+    }
+
+    // Flat brush live preview: parallel bristle strands
+    if (tool === 'flat_brush' && w >= 6) {
       const bristleCount = Math.max(5, Math.round(w / 2))
       const bristleW = Math.max(1.5, w / bristleCount * 1.4)
       const bristles: React.ReactNode[] = []
@@ -336,10 +376,10 @@ function renderLivePreview(
         const t = (b / (bristleCount - 1)) - 0.5
         const offsetX = t * w * 0.85
         const offsetY = t * w * 0.15
-        const bOpacity = (cfg?.opacity ?? 0.8) * (0.5 + Math.abs(Math.sin(b * 2.7)) * 0.5)
+        const bOpacity = (cfg?.opacity ?? 0.85) * (0.5 + Math.abs(Math.sin(b * 2.7)) * 0.5)
         bristles.push(
           <Path key={b} d={livePathD} stroke={color} strokeWidth={bristleW}
-            fill="none" strokeLinecap="round" strokeLinejoin="round"
+            fill="none" strokeLinecap="butt" strokeLinejoin="miter"
             opacity={bOpacity}
             transform={`translate(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`} />
         )
@@ -582,8 +622,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     } else {
       if (currentPoints.current.length > 1) {
         // Simplify path before storing — reduces SVG complexity for committed strokes
-        const simplified = simplifyPoints(currentPoints.current, 0.8)
-        const effectiveWidth = t === 'eraser' ? bs * 2 : bs
+        // Skip simplification for eraser to prevent visible "growing" on release
+        const simplified = t === 'eraser' ? currentPoints.current : simplifyPoints(currentPoints.current, 0.8)
+        const effectiveWidth = bs
         onStrokeCompleteRef.current({
           type: t,
           points: buildSmoothPath(simplified),
@@ -622,10 +663,17 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => enabledRef.current,
-      onMoveShouldSetPanResponder: () => enabledRef.current,
-      onPanResponderTerminationRequest: () => !drawingActive.current,
-      onShouldBlockNativeResponder: () => true,
+      onStartShouldSetPanResponder: (evt) => {
+        // Only claim single-finger touches — let pinch-to-zoom through
+        if (evt.nativeEvent.touches.length > 1) return false
+        return enabledRef.current
+      },
+      onMoveShouldSetPanResponder: (evt) => {
+        if (evt.nativeEvent.touches.length > 1) return false
+        return enabledRef.current
+      },
+      onPanResponderTerminationRequest: () => true,
+      onShouldBlockNativeResponder: () => false,
       onPanResponderGrant: (evt) => {
         const { x, y } = toViewBox(evt)
         const t = toolRef.current
@@ -664,6 +712,8 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       },
       onPanResponderMove: (evt) => {
         if (!drawingActive.current) return
+        // If a second finger appears, finish stroke and let pinch take over
+        if (evt.nativeEvent.touches.length > 1) { finishStroke(); return }
         if (isOutOfBounds(evt)) { finishStroke(); return }
         const { x, y } = toViewBox(evt)
         const t = toolRef.current

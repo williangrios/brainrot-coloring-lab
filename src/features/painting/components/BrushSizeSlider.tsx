@@ -42,16 +42,14 @@ const BrushSizeSlider: React.FC<BrushSizeSliderProps> = ({ size, onSizeChange, v
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    left: 8,
-    top: '30%' as any,
     backgroundColor: '#1a1a1a',
     borderRadius: 14,
     padding: 4,
     gap: 2,
     borderWidth: 1,
     borderColor: '#333',
-    zIndex: 10,
+    alignSelf: 'flex-start',
+    marginLeft: 8,
   },
   closeBtn: {
     width: 40,

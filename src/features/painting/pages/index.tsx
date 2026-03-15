@@ -1,29 +1,43 @@
 import React from 'react'
-import ButterflyPage, { ColoringPageProps, BUTTERFLY_REGIONS } from './ButterflyPage'
-import DinoPage, { DINO_REGIONS } from './DinoPage'
+import { MOCK_PAGES, ApiColoringPage } from '../../../core/data/mockApiPages'
+import DynamicPage from './DynamicPage'
+import { apiPageToRegionData } from './dynamicRegionPaths'
+import { PageRegionData } from './regionPaths'
 
-export type { ColoringPageProps }
-
-interface PageEntry {
-  component: React.FC<ColoringPageProps>
-  regions: string[]
+export interface ColoringPageProps {
+  width: number
+  height: number
+  regionColors: Record<string, string>
+  onRegionPress?: (regionId: string) => void
+  outlineOnly?: boolean
 }
 
-const PAGE_MAP: Record<string, PageEntry> = {
-  img1: { component: ButterflyPage, regions: BUTTERFLY_REGIONS },
-  img2: { component: DinoPage, regions: DINO_REGIONS },
+// Build lookup from mock data
+const PAGE_DATA_MAP: Record<string, ApiColoringPage> = {}
+for (const page of MOCK_PAGES) {
+  PAGE_DATA_MAP[page.id] = page
 }
 
-export function getPageComponent(pageId: string): React.FC<ColoringPageProps> | null {
-  return PAGE_MAP[pageId]?.component || null
-}
+// Cache region data
+const REGION_DATA_CACHE: Record<string, PageRegionData> = {}
 
 export function getPageRegions(pageId: string): string[] {
-  return PAGE_MAP[pageId]?.regions || []
+  const pageData = PAGE_DATA_MAP[pageId]
+  if (!pageData) return []
+  return pageData.regions.filter((r) => !r.decorative).map((r) => r.id)
 }
 
 export function hasPageSvg(pageId: string): boolean {
-  return pageId in PAGE_MAP
+  return pageId in PAGE_DATA_MAP
+}
+
+export function getDynamicRegionData(pageId: string): PageRegionData | null {
+  if (REGION_DATA_CACHE[pageId]) return REGION_DATA_CACHE[pageId]
+  const pageData = PAGE_DATA_MAP[pageId]
+  if (!pageData) return null
+  const data = apiPageToRegionData(pageData)
+  REGION_DATA_CACHE[pageId] = data
+  return data
 }
 
 interface ColoringPageRendererProps {
@@ -38,9 +52,19 @@ interface ColoringPageRendererProps {
 const ColoringPageRenderer: React.FC<ColoringPageRendererProps> = ({
   pageId, width, height, regionColors, onRegionPress, outlineOnly,
 }) => {
-  const PageComponent = getPageComponent(pageId)
-  if (!PageComponent) return null
-  return <PageComponent width={width} height={height} regionColors={regionColors} onRegionPress={onRegionPress} outlineOnly={outlineOnly} />
+  const pageData = PAGE_DATA_MAP[pageId]
+  if (!pageData) return null
+
+  return (
+    <DynamicPage
+      pageData={pageData}
+      width={width}
+      height={height}
+      regionColors={regionColors}
+      onRegionPress={onRegionPress}
+      outlineOnly={outlineOnly}
+    />
+  )
 }
 
 export default React.memo(ColoringPageRenderer)

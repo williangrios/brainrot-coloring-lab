@@ -1,3 +1,5 @@
+import { MOCK_PAGES, ApiColoringPage } from './mockApiPages'
+
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
 export interface ColoringPage {
@@ -8,22 +10,18 @@ export interface ColoringPage {
   isPremiumResource: boolean
 }
 
-export const coloringPages: ColoringPage[] = [
-  {
-    id: 'img1',
-    name: 'Butterfly Garden',
-    nameKey: 'page_butterfly',
-    difficulty: 'easy',
-    isPremiumResource: false,
-  },
-  {
-    id: 'img2',
-    name: 'Happy Dino',
-    nameKey: 'page_dino',
-    difficulty: 'easy',
-    isPremiumResource: false,
-  },
-]
+// Build page list from API data (currently mock)
+function apiToColoringPage(api: ApiColoringPage): ColoringPage {
+  return {
+    id: api.id,
+    name: api.name,
+    nameKey: api.nameKey,
+    difficulty: api.difficulty,
+    isPremiumResource: api.isPremium,
+  }
+}
+
+export const coloringPages: ColoringPage[] = MOCK_PAGES.map(apiToColoringPage)
 
 export function getPageById(id: string): ColoringPage | undefined {
   return coloringPages.find((p) => p.id === id)

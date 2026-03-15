@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent, Animated,
 } from 'react-native'
@@ -9,8 +9,10 @@ import { RootStackParamList } from '../../core/types/navigation'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { getPageById } from '../../core/data/coloringPages'
+import { useAppGate } from '../../core/context/AppGateContext'
+import { MockVideoAd, MockBannerAd, useVideoAd } from '../../core/ads/AdService'
 import ColoringPageRenderer from './pages'
-import { getPageRegionData } from './pages/regionPaths'
+import { getDynamicRegionData } from './pages'
 import DrawingCanvas, { Stroke } from './components/DrawingCanvas'
 import ToolBar from './components/ToolBar'
 import ToneSlider from './components/ToneSlider'
@@ -37,7 +39,7 @@ export default function PaintingScreen() {
   const { pageId } = route.params
 
   const page = getPageById(pageId)
-  const regionData = getPageRegionData(pageId)
+  const regionData = getDynamicRegionData(pageId)
 
   const [regionColors, setRegionColors] = useState<Record<string, string>>({})
   const [strokes, setStrokes] = useState<Stroke[]>([])
@@ -55,6 +57,36 @@ export default function PaintingScreen() {
   const previousColorRef = useRef(selectedColor)
   const canvasOuterRef = useRef<View>(null)
   const canvasOuterLayout = useRef({ x: 0, y: 0, width: 0, height: 0 })
+
+  // Ads
+  const { adsUnlocked, shouldShowVideoAd, recordAdShown } = useAppGate()
+  const { showing: adShowing, showAd, onAdClosed: onAdClosedBase } = useVideoAd()
+  const [initialAdShown, setInitialAdShown] = useState(false)
+  const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const onAdClosed = useCallback(() => {
+    onAdClosedBase()
+    recordAdShown()
+  }, [onAdClosedBase, recordAdShown])
+
+  // Show video ad on mount (if ads unlocked)
+  useEffect(() => {
+    if (adsUnlocked && !initialAdShown && shouldShowVideoAd()) {
+      setInitialAdShown(true)
+      showAd()
+    }
+  }, [adsUnlocked]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 1-minute interval ad timer
+  useEffect(() => {
+    if (!adsUnlocked) return
+    adTimerRef.current = setInterval(() => {
+      if (shouldShowVideoAd()) {
+        showAd()
+      }
+    }, 60_000)
+    return () => { if (adTimerRef.current) clearInterval(adTimerRef.current) }
+  }, [adsUnlocked, shouldShowVideoAd, showAd])
 
   // Pinch-to-zoom with focal point
   const scaleVal = useRef(new Animated.Value(1)).current
@@ -270,7 +302,6 @@ export default function PaintingScreen() {
             <PinchGestureHandler
               onGestureEvent={onPinchEvent}
               onHandlerStateChange={onPinchStateChange}
-              enabled={!isDrawing}
             >
               <Animated.View style={[
                 styles.canvasCenter,
@@ -318,21 +349,23 @@ export default function PaintingScreen() {
           )}
           {(showBrushSize || showOpacity) && (
             <View style={styles.sliderOverlay} pointerEvents="box-none">
-              {showBrushSize && (
-                <BrushSizeSlider
-                  size={brushSize}
-                  onSizeChange={setBrushSize}
-                  visible={true}
-                  onClose={() => setBrushSliderDismissed(true)}
-                />
-              )}
-              {showOpacity && (
-                <OpacitySlider
-                  opacity={brushOpacity}
-                  onOpacityChange={setBrushOpacity}
-                  visible={true}
-                />
-              )}
+              <View style={styles.sliderColumn} pointerEvents="box-none">
+                {showBrushSize && (
+                  <BrushSizeSlider
+                    size={brushSize}
+                    onSizeChange={setBrushSize}
+                    visible={true}
+                    onClose={() => setBrushSliderDismissed(true)}
+                  />
+                )}
+                {showOpacity && (
+                  <OpacitySlider
+                    opacity={brushOpacity}
+                    onOpacityChange={setBrushOpacity}
+                    visible={true}
+                  />
+                )}
+              </View>
             </View>
           )}
         </View>
@@ -362,6 +395,12 @@ export default function PaintingScreen() {
           <ToneSlider baseColor={baseColor} selectedColor={selectedColor} onSelectColor={handleSelectTone} />
           <PaletteBar selectedColor={selectedColor} onSelectColor={handleSelectColor} recentColors={recentColors} />
         </View>
+
+        {/* Banner ad at bottom (free users only, after rating) */}
+        <MockBannerAd visible={adsUnlocked} />
+
+        {/* Video ad overlay */}
+        <MockVideoAd visible={adShowing} onClose={onAdClosed} />
       </View>
     </ScreenWrapper>
   )
@@ -380,7 +419,8 @@ const styles = StyleSheet.create({
   finishText: { color: '#111', fontSize: 14, fontWeight: '700' },
   canvasOuter: { flex: 1, overflow: 'hidden' },
   canvasCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  sliderOverlay: { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 },
+  sliderOverlay: { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0, justifyContent: 'center' },
+  sliderColumn: { flexDirection: 'column', alignItems: 'flex-start' },
   bottomPanel: { backgroundColor: '#1a1a1a', borderTopWidth: 1, borderTopColor: '#333' },
   toolRow: { flexDirection: 'row', alignItems: 'center' },
   toolRowSide: { flexDirection: 'column', gap: 4, paddingHorizontal: 4, paddingVertical: 4 },

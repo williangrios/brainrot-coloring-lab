@@ -22,11 +22,11 @@ export default function OnboardingScreen() {
   const [videoFinished, setVideoFinished] = useState(false)
 
   const handleEnter = () => {
-    navigation.replace('Subscription')
+    navigation.replace('Email')
   }
 
   const handleSkip = () => {
-    navigation.replace('MainTabs')
+    navigation.replace('Email')
   }
 
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
