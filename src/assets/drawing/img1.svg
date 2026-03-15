@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <!-- Butterfly coloring page - each region is a separate path -->
+
+  <!-- Background sky -->
+  <path id="bg" d="M0,0 H400 V500 H0 Z" fill="white" stroke="none"/>
+
+  <!-- Left upper wing -->
+  <path id="wing-upper-left" d="M200,200 C180,160 120,100 60,120 C20,135 10,180 30,220 C50,260 120,260 160,240 C180,230 195,215 200,200 Z" fill="white" stroke="black" stroke-width="2.5"/>
+
+  <!-- Right upper wing -->
+  <path id="wing-upper-right" d="M200,200 C220,160 280,100 340,120 C380,135 390,180 370,220 C350,260 280,260 240,240 C220,230 205,215 200,200 Z" fill="white" stroke="black" stroke-width="2.5"/>
+
+  <!-- Left lower wing -->
+  <path id="wing-lower-left" d="M200,220 C185,240 140,290 90,300 C50,310 25,290 20,260 C15,230 40,210 80,210 C130,210 175,215 200,220 Z" fill="white" stroke="black" stroke-width="2.5"/>
+
+  <!-- Right lower wing -->
+  <path id="wing-lower-right" d="M200,220 C215,240 260,290 310,300 C350,310 375,290 380,260 C385,230 360,210 320,210 C270,210 225,215 200,220 Z" fill="white" stroke="black" stroke-width="2.5"/>
+
+  <!-- Wing spot left upper -->
+  <path id="spot-left-upper" d="M120,170 C130,150 155,145 165,160 C175,175 165,195 150,195 C135,195 115,185 120,170 Z" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Wing spot right upper -->
+  <path id="spot-right-upper" d="M280,170 C270,150 245,145 235,160 C225,175 235,195 250,195 C265,195 285,185 280,170 Z" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Wing spot left lower -->
+  <ellipse id="spot-left-lower" cx="100" cy="255" rx="25" ry="18" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Wing spot right lower -->
+  <ellipse id="spot-right-lower" cx="300" cy="255" rx="25" ry="18" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Body -->
+  <path id="body" d="M195,160 L205,160 L208,340 C208,350 192,350 192,340 Z" fill="white" stroke="black" stroke-width="2.5"/>
+
+  <!-- Head -->
+  <circle id="head" cx="200" cy="150" r="18" fill="white" stroke="black" stroke-width="2.5"/>
+
+  <!-- Left eye -->
+  <circle id="eye-left" cx="193" cy="147" r="4" fill="black" stroke="none"/>
+
+  <!-- Right eye -->
+  <circle id="eye-right" cx="207" cy="147" r="4" fill="black" stroke="none"/>
+
+  <!-- Left antenna -->
+  <path id="antenna-left" d="M193,133 C185,110 160,95 155,85" fill="none" stroke="black" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="155" cy="85" r="5" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Right antenna -->
+  <path id="antenna-right" d="M207,133 C215,110 240,95 245,85" fill="none" stroke="black" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="245" cy="85" r="5" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Flower 1 - bottom left -->
+  <path id="flower1-petal1" d="M70,420 C65,400 80,390 90,400 C100,390 115,400 110,420 C115,430 100,445 90,435 C80,445 65,430 70,420 Z" fill="white" stroke="black" stroke-width="2"/>
+  <circle id="flower1-center" cx="90" cy="418" r="8" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Flower 2 - bottom right -->
+  <path id="flower2-petal1" d="M300,440 C295,420 310,410 320,420 C330,410 345,420 340,440 C345,450 330,465 320,455 C310,465 295,450 300,440 Z" fill="white" stroke="black" stroke-width="2"/>
+  <circle id="flower2-center" cx="320" cy="438" r="8" fill="white" stroke="black" stroke-width="2"/>
+
+  <!-- Grass -->
+  <path id="grass" d="M0,470 C30,460 60,470 90,460 C120,470 150,460 180,470 C210,460 240,470 270,460 C300,470 330,460 360,470 C390,460 400,465 400,470 L400,500 L0,500 Z" fill="white" stroke="black" stroke-width="2"/>
+</svg>

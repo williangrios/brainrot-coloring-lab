@@ -1,33 +1,24 @@
 import React, { useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
-import Svg from 'react-native-svg'
+import { Heart } from 'lucide-react-native'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import Header from '../../core/components/Header'
+import PremiumModal from '../../core/components/PremiumModal'
 import { useCredits } from '../../core/context/CreditsContext'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { getDrawings, Drawing } from '../../core/storage/drawingStorage'
-import { headComponents, bodyComponents, environmentComponents } from '../../features/creation/data/partsRegistry'
+import { coloringPages, ColoringPage, Difficulty } from '../../core/data/coloringPages'
+import { getFavorites, addFavorite, removeFavorite } from '../../core/storage/favoritesStorage'
+import { getPageById } from '../../core/data/coloringPages'
+import ColoringPageRenderer from '../../features/painting/pages'
 
-const COMBOS = [
-  { head: 'capybara', body: 'buff', env: 'space', label: 'Buff Capybara in Space' },
-  { head: 'skibidi', body: 'chef', env: 'pizza_land', label: 'Skibidi Chef in Pizza Land' },
-  { head: 'frog', body: 'suit', env: 'city', label: 'Frog King CEO' },
-  { head: 'cat', body: 'skater', env: 'jungle', label: 'Laser Cat Skater' },
-  { head: 'alien', body: 'robot', env: 'underwater', label: 'Alien Robot Underwater' },
-]
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
-function MiniPreview({ headId, bodyId, envId, size = 80 }: { headId: string; bodyId: string; envId: string; size?: number }) {
-  const Head = headComponents[headId]
-  const Body = bodyComponents[bodyId]
-  const Env = environmentComponents[envId]
-  return (
-    <Svg width={size} height={size * 1.25} viewBox="0 0 400 500">
-      {Env && <Env fills={{}} />}
-      {Body && <Body fills={{}} />}
-      {Head && <Head fills={{}} />}
-    </Svg>
-  )
+const DIFFICULTY_COLORS: Record<Difficulty, string> = {
+  easy: '#00ff88',
+  medium: '#FFD600',
+  hard: '#ff4444',
 }
 
 export default function HomeScreen() {
@@ -35,32 +26,40 @@ export default function HomeScreen() {
   const { credits, isPremium } = useCredits()
   const { t } = useLanguage()
   const [recentDrawings, setRecentDrawings] = useState<Drawing[]>([])
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [premiumModal, setPremiumModal] = useState(false)
 
   useFocusEffect(
     useCallback(() => {
-      getDrawings().then((d) => setRecentDrawings(d.slice(0, 3)))
+      getDrawings().then((d) => setRecentDrawings(d.slice(0, 6)))
+      getFavorites().then(setFavorites)
     }, [])
   )
 
-  const checkCreditsAndNavigate = (headId: string, bodyId: string, environmentId: string) => {
-    if (!isPremium && credits <= 0) {
-      Alert.alert(t('noCredits'), t('noCreditsMsg'), [
-        { text: 'OK', onPress: () => navigation.navigate('Library') },
-      ])
+  const handleSelectPage = (page: ColoringPage) => {
+    if (page.isPremiumResource && !isPremium) {
+      setPremiumModal(true)
       return
     }
-    navigation.getParent()?.navigate('Painting', { headId, bodyId, environmentId })
+    if (!isPremium && credits <= 0) {
+      setPremiumModal(true)
+      return
+    }
+    navigation.getParent()?.navigate('Painting', { pageId: page.id })
   }
 
-  const handleCreate = () => {
-    if (!isPremium && credits <= 0) {
-      Alert.alert(t('noCredits'), t('noCreditsMsg'), [
-        { text: 'OK', onPress: () => navigation.navigate('Library') },
-      ])
-      return
+  const handleToggleFavorite = async (pageId: string) => {
+    if (favorites.includes(pageId)) {
+      await removeFavorite(pageId)
+      setFavorites((prev) => prev.filter((id) => id !== pageId))
+    } else {
+      await addFavorite(pageId)
+      setFavorites((prev) => [pageId, ...prev])
     }
-    navigation.navigate('Create')
   }
+
+  const freePages = coloringPages.filter((p) => !p.isPremiumResource)
+  const favPages = coloringPages.filter((p) => favorites.includes(p.id))
 
   return (
     <ScreenWrapper noBottom>
@@ -70,31 +69,73 @@ export default function HomeScreen() {
         renderItem={null}
         ListHeaderComponent={
           <View style={styles.content}>
+            {/* Hero */}
             <View style={styles.hero}>
-              <Text style={styles.heroTitle}>{t('createYourCharacter')}</Text>
-              <Text style={styles.heroSubtitle}>{t('mixDescription')}</Text>
-              <TouchableOpacity style={styles.createBtn} onPress={handleCreate}>
-                <Text style={styles.createBtnText}>{t('createNew')}</Text>
+              <Text style={styles.heroTitle}>{t('startColoring')}</Text>
+              <Text style={styles.heroSubtitle}>{t('chooseDrawing')}</Text>
+              <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.navigate('Browse')}>
+                <Text style={styles.browseBtnText}>{t('browseAll')}</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionTitle}>{t('featuredCombos')}</Text>
+            {/* Free drawings */}
+            <Text style={styles.sectionTitle}>{t('freeDrawings')}</Text>
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={COMBOS}
-              keyExtractor={(item) => item.label}
-              contentContainerStyle={styles.combosScroll}
+              data={freePages}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.hScroll}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.comboCard} onPress={() => checkCreditsAndNavigate(item.head, item.body, item.env)} activeOpacity={0.7}>
-                  <View style={styles.comboPreview}>
-                    <MiniPreview headId={item.head} bodyId={item.body} envId={item.env} size={100} />
+                <TouchableOpacity style={styles.pageCard} onPress={() => handleSelectPage(item)} activeOpacity={0.7}>
+                  <View style={styles.pageImageWrap}>
+                    <View pointerEvents="none">
+                      <ColoringPageRenderer pageId={item.id} width={110} height={120} regionColors={{}} />
+                    </View>
+                    <TouchableOpacity
+                      style={styles.favBtn}
+                      onPress={() => handleToggleFavorite(item.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Heart size={14} color={favorites.includes(item.id) ? '#ff4466' : '#fff'} fill={favorites.includes(item.id) ? '#ff4466' : 'none'} strokeWidth={favorites.includes(item.id) ? 2 : 1.5} />
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.comboLabel} numberOfLines={2}>{item.label}</Text>
+                  <View style={styles.pageInfo}>
+                    <Text style={styles.pageName} numberOfLines={1}>{t(item.nameKey) || item.name}</Text>
+                    <View style={[styles.diffDot, { backgroundColor: DIFFICULTY_COLORS[item.difficulty] }]} />
+                  </View>
                 </TouchableOpacity>
               )}
             />
 
+            {/* Favorites */}
+            {favPages.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>{t('favorites')}</Text>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={favPages}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.hScroll}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity style={styles.pageCard} onPress={() => handleSelectPage(item)} activeOpacity={0.7}>
+                      <View style={styles.pageImageWrap}>
+                        <View pointerEvents="none">
+                          <ColoringPageRenderer pageId={item.id} width={110} height={120} regionColors={{}} />
+                        </View>
+                        {item.isPremiumResource && !isPremium && (
+                          <View style={styles.lockBadge}><Text style={styles.lockText}>🔒</Text></View>
+                        )}
+                      </View>
+                      <Text style={styles.pageName} numberOfLines={1}>{t(item.nameKey) || item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </>
+            )}
+
+            {/* Recent */}
             {recentDrawings.length > 0 && (
               <>
                 <Text style={styles.sectionTitle}>{t('recentDrawings')}</Text>
@@ -103,19 +144,24 @@ export default function HomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   data={recentDrawings}
                   keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.combosScroll}
+                  contentContainerStyle={styles.hScroll}
                   renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.comboCard} onPress={() => checkCreditsAndNavigate(item.headId, item.bodyId, item.environmentId)} activeOpacity={0.7}>
-                      <View style={styles.comboPreview}>
-                        <MiniPreview headId={item.headId} bodyId={item.bodyId} envId={item.environmentId} size={100} />
+                    <TouchableOpacity
+                      style={styles.recentCard}
+                      onPress={() => navigation.getParent()?.navigate('Painting', { pageId: item.pageId })}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.recentPreview}>
+                        <ColoringPageRenderer pageId={item.pageId} width={90} height={80} regionColors={item.regionColors || {}} />
                       </View>
-                      <Text style={styles.comboLabel} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.recentName} numberOfLines={1}>{item.name}</Text>
                     </TouchableOpacity>
                   )}
                 />
               </>
             )}
 
+            {/* Credits info */}
             {!isPremium && (
               <View style={styles.creditsInfo}>
                 <Text style={styles.creditsInfoTitle}>{t('freePlan')}</Text>
@@ -123,10 +169,21 @@ export default function HomeScreen() {
                   {t('creditsRemaining').replace('{count}', String(credits))}{'\n'}
                   {t('shareToEarn')}
                 </Text>
+                <TouchableOpacity
+                  style={styles.upgradeSmall}
+                  onPress={() => setPremiumModal(true)}
+                >
+                  <Text style={styles.upgradeSmallText}>{t('upgradeToPremium')}</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
         }
+      />
+      <PremiumModal
+        visible={premiumModal}
+        onClose={() => setPremiumModal(false)}
+        onSubscribe={() => setPremiumModal(false)}
       />
     </ScreenWrapper>
   )
@@ -137,14 +194,46 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: '#1a1a1a', borderRadius: 20, padding: 24, marginBottom: 24, borderWidth: 1, borderColor: '#222' },
   heroTitle: { color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 8, lineHeight: 34 },
   heroSubtitle: { color: '#888', fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  createBtn: { backgroundColor: '#00ff88', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
-  createBtnText: { color: '#111', fontSize: 17, fontWeight: '800' },
-  sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  combosScroll: { gap: 12, paddingBottom: 20 },
-  comboCard: { width: 130, backgroundColor: '#1a1a1a', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#222' },
-  comboPreview: { height: 130, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0d0d0d' },
-  comboLabel: { color: '#ccc', fontSize: 12, fontWeight: '600', padding: 8, textAlign: 'center' },
-  creditsInfo: { backgroundColor: '#1a1a0a', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#333300' },
+  browseBtn: { backgroundColor: '#00ff88', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  browseBtnText: { color: '#111', fontSize: 17, fontWeight: '800' },
+  sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 12, marginTop: 8 },
+  hScroll: { gap: 12, paddingBottom: 20 },
+  pageCard: { width: 130, backgroundColor: '#1a1a1a', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#222' },
+  pageImageWrap: { height: 140, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  pageImage: { width: 110, height: 120 },
+  pageInfo: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 6 },
+  pageName: { color: '#ccc', fontSize: 11, fontWeight: '600', flex: 1 },
+  diffDot: { width: 8, height: 8, borderRadius: 4 },
+  favBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockText: { fontSize: 12 },
+  recentCard: { width: 110, backgroundColor: '#1a1a1a', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#222' },
+  recentPreview: { height: 100, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  recentImage: { width: 90, height: 80 },
+  recentName: { color: '#ccc', fontSize: 11, fontWeight: '600', padding: 6, textAlign: 'center' },
+  creditsInfo: { backgroundColor: '#1a1a0a', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#333300', marginTop: 8 },
   creditsInfoTitle: { color: '#FFD600', fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  creditsInfoText: { color: '#999', fontSize: 13, lineHeight: 20 },
+  creditsInfoText: { color: '#999', fontSize: 13, lineHeight: 20, marginBottom: 12 },
+  upgradeSmall: { backgroundColor: '#00ff88', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  upgradeSmallText: { color: '#111', fontSize: 14, fontWeight: '700' },
 })

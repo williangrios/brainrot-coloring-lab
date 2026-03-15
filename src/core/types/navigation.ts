@@ -1,25 +1,20 @@
 export type RootStackParamList = {
-  LanguageSelect: undefined;
-  Onboarding: undefined;
-  Subscription: undefined;
-  MainTabs: undefined;
-  Creation: undefined;
-  Painting: { headId: string; bodyId: string; environmentId: string };
+  LanguageSelect: undefined
+  Onboarding: undefined
+  Subscription: undefined
+  MainTabs: undefined
+  Painting: { pageId: string }
   Finalization: {
-    headId: string;
-    bodyId: string;
-    environmentId: string;
-    fills: Record<string, string>;
-    strokes: any[];
-    canvasWidth: number;
-    canvasHeight: number;
-  };
-};
+    pageId: string
+    regionColors: Record<string, string>
+    strokes: any[]
+  }
+}
 
 export type MainTabParamList = {
-  Home: undefined;
-  Create: undefined;
-  Library: undefined;
-  Explore: undefined;
-  Profile: undefined;
-};
+  Home: undefined
+  Browse: undefined
+  Library: undefined
+  Explore: undefined
+  Profile: undefined
+}

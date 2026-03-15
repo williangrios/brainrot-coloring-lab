@@ -13,7 +13,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
   return (
     <View style={styles.container}>
       <View style={styles.logoRow}>
-        <AppLogo size={38} />
+        <AppLogo size={44} />
         <Text style={styles.title}>{title}</Text>
       </View>
       <View style={styles.creditsContainer}>

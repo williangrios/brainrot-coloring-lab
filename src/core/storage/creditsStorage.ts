@@ -4,12 +4,12 @@ const CREDITS_KEY = '@brainrot_credits'
 const SHARES_KEY = '@brainrot_share_count'
 const INITIALIZED_KEY = '@brainrot_initialized'
 
-const INITIAL_CREDITS = 10 // TODO: change to 1 for production
+const INITIAL_CREDITS = 100 // TODO: change to 1 for production
 const MAX_SHARE_CREDITS = 3
 
 export async function initCredits(): Promise<number> {
   // Reset for testing - force re-init with new credit amount
-  const currentVersion = 'v2_10credits'
+  const currentVersion = 'v3_100credits'
   const initialized = await AsyncStorage.getItem(INITIALIZED_KEY)
   if (initialized !== currentVersion) {
     await AsyncStorage.setItem(CREDITS_KEY, String(INITIAL_CREDITS))

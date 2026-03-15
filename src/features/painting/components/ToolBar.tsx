@@ -17,7 +17,7 @@ const ToolBar: React.FC<ToolBarProps> = ({ selectedTool, onSelectTool }) => {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
-      {TOOLS.map((tool) => {
+      {TOOLS.filter((tool) => tool.id !== 'eyedropper').map((tool) => {
         const isSelected = selectedTool === tool.id
         return (
           <TouchableOpacity

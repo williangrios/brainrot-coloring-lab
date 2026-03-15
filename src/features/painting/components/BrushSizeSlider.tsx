@@ -1,20 +1,24 @@
 import React from 'react'
-import { View, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
 
 interface BrushSizeSliderProps {
   size: number
   onSizeChange: (size: number) => void
   visible: boolean
+  onClose: () => void
 }
 
 const SIZES = [4, 8, 14, 22, 32]
 
-const BrushSizeSlider: React.FC<BrushSizeSliderProps> = ({ size, onSizeChange, visible }) => {
+const BrushSizeSlider: React.FC<BrushSizeSliderProps> = ({ size, onSizeChange, visible, onClose }) => {
   if (!visible) return null
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.6}>
+        <Text style={styles.closeBtnText}>✕</Text>
+      </TouchableOpacity>
       {SIZES.map((s) => (
         <TouchableOpacity
           key={s}
@@ -48,6 +52,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
     zIndex: 10,
+  },
+  closeBtn: {
+    width: 40,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnText: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '700',
   },
   sizeOption: {
     width: 40,

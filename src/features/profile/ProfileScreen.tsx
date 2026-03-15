@@ -1,5 +1,11 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import Header from '../../core/components/Header'
@@ -9,11 +15,12 @@ import AppLogo from '../../core/components/AppLogo'
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>()
-  const { credits, shareCount, isPremium } = useCredits()
+  const { credits, shareCount, isPremium, togglePremium } = useCredits()
   const { t, language } = useLanguage()
 
-  const handleChangeLanguage = () => { navigation.getParent()?.navigate('LanguageSelect') }
-  const handleUpgrade = () => { navigation.getParent()?.navigate('Subscription') }
+  const handleChangeLanguage = () => {
+    navigation.getParent()?.navigate('LanguageSelect')
+  }
 
   return (
     <ScreenWrapper noBottom>
@@ -22,23 +29,37 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('yourPlan')}</Text>
           {isPremium ? (
-            <View style={styles.planBadge}><Text style={styles.planBadgeText}>{t('premium')}</Text></View>
+            <View style={styles.planBadge}>
+              <Text style={styles.planBadgeText}>{t('premium')}</Text>
+            </View>
           ) : (
-            <>
-              <View style={styles.freeBadge}><Text style={styles.freeBadgeText}>{t('free')}</Text></View>
-              <TouchableOpacity style={styles.upgradeBtn} onPress={handleUpgrade}>
-                <Text style={styles.upgradeBtnText}>{t('upgradeToPremium')}</Text>
-              </TouchableOpacity>
-            </>
+            <View style={styles.freeBadge}>
+              <Text style={styles.freeBadgeText}>{t('free')}</Text>
+            </View>
           )}
+          <TouchableOpacity
+            style={[styles.toggleBtn, isPremium && styles.toggleBtnActive]}
+            onPress={togglePremium}
+          >
+            <Text style={styles.toggleBtnText}>
+              {isPremium ? t('deactivatePremium') : t('activatePremium')}
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.testHint}>(Test toggle)</Text>
         </View>
 
         {!isPremium && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('credits')}</Text>
             <View style={styles.creditsRow}>
-              <View style={styles.creditItem}><Text style={styles.creditNumber}>{credits}</Text><Text style={styles.creditLabel}>{t('available')}</Text></View>
-              <View style={styles.creditItem}><Text style={styles.creditNumber}>{shareCount}/3</Text><Text style={styles.creditLabel}>{t('sharesUsed')}</Text></View>
+              <View style={styles.creditItem}>
+                <Text style={styles.creditNumber}>{credits}</Text>
+                <Text style={styles.creditLabel}>{t('available')}</Text>
+              </View>
+              <View style={styles.creditItem}>
+                <Text style={styles.creditNumber}>{shareCount}/3</Text>
+                <Text style={styles.creditLabel}>{t('sharesUsed')}</Text>
+              </View>
             </View>
             <Text style={styles.creditsHint}>{t('shareCreditsHint')}</Text>
           </View>
@@ -46,7 +67,10 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('settings')}</Text>
-          <TouchableOpacity style={styles.settingRow} onPress={handleChangeLanguage}>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={handleChangeLanguage}
+          >
             <Text style={styles.settingLabel}>{t('language')}</Text>
             <Text style={styles.settingValue}>{language.toUpperCase()} ›</Text>
           </TouchableOpacity>
@@ -60,16 +84,15 @@ export default function ProfileScreen() {
           <View style={styles.premiumCard}>
             <Text style={styles.premiumTitle}>{t('premiumFeatures')}</Text>
             <Text style={styles.premiumFeature}>{t('unlimitedDrawings')}</Text>
+            <Text style={styles.premiumFeature}>{t('allDifficulties')}</Text>
             <Text style={styles.premiumFeature}>{t('noWatermark')}</Text>
             <Text style={styles.premiumFeature}>{t('allPalettes')}</Text>
             <Text style={styles.premiumFeature}>{t('restartAnytime')}</Text>
-            <Text style={styles.premiumFeature}>{t('multipleDrawings')}</Text>
           </View>
         )}
 
-        {/* Logo at bottom */}
         <View style={styles.logoFooter}>
-          <AppLogo size={80} />
+          <AppLogo size={130} />
           <Text style={styles.logoText}>Brainrot Coloring Lab</Text>
           <Text style={styles.logoVersion}>v1.0.0</Text>
         </View>
@@ -80,24 +103,75 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 16, paddingBottom: 40 },
-  card: { backgroundColor: '#1a1a1a', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#222' },
-  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 },
-  planBadge: { backgroundColor: '#00ff88', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, alignSelf: 'flex-start' },
+  card: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  cardTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  planBadge: {
+    backgroundColor: '#00ff88',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
   planBadgeText: { color: '#111', fontSize: 14, fontWeight: '700' },
-  freeBadge: { backgroundColor: '#333', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, alignSelf: 'flex-start', marginBottom: 12 },
+  freeBadge: {
+    backgroundColor: '#333',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
   freeBadgeText: { color: '#aaa', fontSize: 14, fontWeight: '700' },
-  upgradeBtn: { backgroundColor: '#00ff88', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  upgradeBtnText: { color: '#111', fontSize: 15, fontWeight: '700' },
+  toggleBtn: {
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  toggleBtnActive: { backgroundColor: '#2a1a1a' },
+  toggleBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  testHint: { color: '#555', fontSize: 11, textAlign: 'center', marginTop: 4 },
   creditsRow: { flexDirection: 'row', gap: 20, marginBottom: 12 },
   creditItem: { alignItems: 'center' },
   creditNumber: { color: '#FFD600', fontSize: 28, fontWeight: '800' },
   creditLabel: { color: '#888', fontSize: 12, marginTop: 2 },
   creditsHint: { color: '#666', fontSize: 12, lineHeight: 18 },
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#222' },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
+  },
   settingLabel: { color: '#ccc', fontSize: 15 },
   settingValue: { color: '#888', fontSize: 14 },
-  premiumCard: { backgroundColor: '#0a2a18', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#00ff8833', gap: 8 },
-  premiumTitle: { color: '#00ff88', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  premiumCard: {
+    backgroundColor: '#0a2a18',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#00ff8833',
+    gap: 8,
+  },
+  premiumTitle: {
+    color: '#00ff88',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
   premiumFeature: { color: '#aaffcc', fontSize: 14 },
   logoFooter: { alignItems: 'center', paddingTop: 20 },
   logoText: { color: '#444', fontSize: 16, fontWeight: '700' },

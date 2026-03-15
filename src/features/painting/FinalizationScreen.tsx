@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react'
 import {
-  View, Text, TouchableOpacity, TextInput, StyleSheet, Alert, Dimensions, Share,
+  View, Text, TouchableOpacity, TextInput, StyleSheet, Alert, Dimensions, Share, Linking, Platform,
 } from 'react-native'
 import { useNavigation, useRoute, RouteProp, CommonActions } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import Svg, { Path, G } from 'react-native-svg'
 import { RootStackParamList } from '../../core/types/navigation'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import { useCredits } from '../../core/context/CreditsContext'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { saveDrawing, generateId } from '../../core/storage/drawingStorage'
-import { headComponents, bodyComponents, environmentComponents, heads, bodies } from '../creation/data/partsRegistry'
+import Svg, { Path, G } from 'react-native-svg'
+import ColoringPageRenderer from './pages'
+import { TOOL_RENDER_CONFIG } from './data/tools'
 
 type FinalizationRoute = RouteProp<RootStackParamList, 'Finalization'>
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Finalization'>
@@ -21,26 +22,22 @@ const PREVIEW_SIZE = Math.min(SCREEN_WIDTH - 80, 250)
 const PREFIXES = ['Sigma', 'Ultra', 'Mega', 'Turbo', 'Hyper', 'Skibidi', 'Giga', 'Based', 'Cracked', 'Goated']
 const SUFFIXES = ['King', 'Lord', 'Master', 'Boss', 'Chief', 'Supreme', 'Prime', 'Chad', 'Legend', 'God']
 
-function generateBrainrotName(headId: string, bodyId: string): string[] {
-  const headMeta = heads.find((h) => h.id === headId)
-  const bodyMeta = bodies.find((b) => b.id === bodyId)
-  const headName = headMeta?.name || 'Creature'
-  const bodyName = bodyMeta?.name || 'Beast'
+function generateBrainrotName(): string[] {
   const p1 = PREFIXES[Math.floor(Math.random() * PREFIXES.length)]
   const p2 = PREFIXES[Math.floor(Math.random() * PREFIXES.length)]
   const s1 = SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)]
   const s2 = SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)]
-  return [`${p1} ${headName} ${s1}`, `${p2} ${bodyName} ${headName} ${s2}`]
+  return [`${p1} ${s1}`, `${p2} ${s2}`]
 }
 
 export default function FinalizationScreen() {
   const route = useRoute<FinalizationRoute>()
   const navigation = useNavigation<Nav>()
-  const { headId, bodyId, environmentId, fills, strokes = [], canvasWidth, canvasHeight } = route.params
+  const { pageId, regionColors, strokes = [] } = route.params
   const { earnFromShare, shareCount } = useCredits()
   const { t } = useLanguage()
 
-  const suggestedNames = useMemo(() => generateBrainrotName(headId, bodyId), [headId, bodyId])
+  const suggestedNames = useMemo(() => generateBrainrotName(), [])
   const [selectedNameIndex, setSelectedNameIndex] = useState(0)
   const [customName, setCustomName] = useState('')
   const [useCustom, setUseCustom] = useState(false)
@@ -49,10 +46,6 @@ export default function FinalizationScreen() {
 
   const finalName = useCustom ? customName : suggestedNames[selectedNameIndex]
 
-  const Head = headComponents[headId]
-  const Body = bodyComponents[bodyId]
-  const Env = environmentComponents[environmentId]
-
   const handleSave = async () => {
     if (!finalName.trim()) {
       Alert.alert(t('nameRequired'), t('giveAName'))
@@ -60,8 +53,9 @@ export default function FinalizationScreen() {
     }
     await saveDrawing({
       id: generateId(),
-      headId, bodyId, environmentId, fills, strokes,
-      canvasWidth, canvasHeight,
+      pageId,
+      regionColors,
+      strokes,
       name: finalName.trim(),
       createdAt: Date.now(),
       shared: false,
@@ -70,29 +64,74 @@ export default function FinalizationScreen() {
     Alert.alert(t('saved'), t('drawingSaved'))
   }
 
+  const onShareComplete = async () => {
+    if (shareCount < 3) {
+      const earned = await earnFromShare()
+      if (earned) {
+        setShared(true)
+        Alert.alert(t('creditEarned'), t('earnedCreditMsg'))
+      }
+    } else {
+      setShared(true)
+    }
+  }
+
   const handleShare = async () => {
     if (!saved) await handleSave()
-    try {
-      const message = t('shareMessage').replace('{name}', finalName)
-      const result = await Share.share({ message })
-      if (result.action === Share.sharedAction) {
-        if (shareCount < 3) {
-          const earned = await earnFromShare()
-          if (earned) {
-            setShared(true)
-            Alert.alert(t('creditEarned'), t('earnedCreditMsg'))
-          }
-        } else {
-          setShared(true)
-        }
-      }
-    } catch {
-      // User cancelled
-    }
+    const message = t('shareMessage').replace('{name}', finalName)
+    Alert.alert(
+      t('share'),
+      message,
+      [
+        {
+          text: 'Instagram',
+          onPress: async () => {
+            const igUrl = Platform.OS === 'ios' ? 'instagram://camera' : 'instagram://share'
+            try { await Linking.openURL(igUrl) } catch { await Linking.openURL('https://www.instagram.com') }
+            await onShareComplete()
+          },
+        },
+        {
+          text: 'TikTok',
+          onPress: async () => {
+            try { await Linking.openURL('snssdk1233://') } catch { await Linking.openURL('https://www.tiktok.com') }
+            await onShareComplete()
+          },
+        },
+        { text: t('cancel'), style: 'cancel' },
+      ]
+    )
   }
 
   const handleDone = () => {
     navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }))
+  }
+
+  const renderStroke = (stroke: any, i: number) => {
+    if (stroke.strands) {
+      return <G key={i}>{stroke.strands.map((d: string, j: number) => (
+        <Path key={j} d={d} stroke={stroke.color} strokeWidth={stroke.width} fill="none" strokeLinecap="round" opacity={stroke.opacity} />
+      ))}</G>
+    } else if (stroke.pathD) {
+      return <Path key={i} d={stroke.pathD} fill={stroke.color} opacity={stroke.opacity ?? 0.6} />
+    } else if (stroke.points) {
+      const cfg = TOOL_RENDER_CONFIG[stroke.type]
+      if (cfg?.passes) {
+        return <G key={i}>{Array.from({ length: cfg.passes }).map((_, p) => (
+          <Path key={p} d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width + p * (cfg.passWidthInc || 3)} fill="none" strokeLinecap="round" opacity={cfg.passOpacity || 0.15} />
+        ))}</G>
+      }
+      if (stroke.glowWidth) {
+        return <G key={i}>
+          <Path d={stroke.points} stroke={stroke.color} strokeWidth={stroke.glowWidth} fill="none" strokeLinecap="round" opacity={stroke.glowOpacity ?? 0.25} />
+          <Path d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width} fill="none" strokeLinecap="round" opacity={stroke.opacity} />
+        </G>
+      }
+      return <Path key={i} d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width}
+        fill="none" strokeLinecap={stroke.strokeLinecap || 'round'} strokeLinejoin={stroke.strokeLinejoin || 'round'}
+        strokeDasharray={stroke.strokeDasharray} opacity={stroke.opacity ?? 0.8} />
+    }
+    return null
   }
 
   return (
@@ -100,33 +139,19 @@ export default function FinalizationScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>{t('yourCreation')}</Text>
         <View style={styles.previewContainer}>
-          <Svg width={PREVIEW_SIZE} height={PREVIEW_SIZE * 1.25} viewBox="0 0 400 500">
-              {Env && <Env fills={fills} />}
-              {Body && <Body fills={fills} />}
-              {Head && <Head fills={fills} />}
-            {strokes.map((stroke: any, i: number) => {
-              if (stroke.strands) {
-                return <G key={i}>{stroke.strands.map((d: string, j: number) => (
-                  <Path key={j} d={d} stroke={stroke.color} strokeWidth={stroke.width} fill="none" strokeLinecap="round" opacity={stroke.opacity} />
-                ))}</G>
-              }
-              if (stroke.pathD) {
-                return <Path key={i} d={stroke.pathD} fill={stroke.color} opacity={stroke.opacity ?? 0.6} />
-              }
-              if (stroke.points) {
-                if (stroke.glowWidth) {
-                  return <G key={i}>
-                    <Path d={stroke.points} stroke={stroke.color} strokeWidth={stroke.glowWidth} fill="none" strokeLinecap="round" opacity={stroke.glowOpacity ?? 0.25} />
-                    <Path d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width} fill="none" strokeLinecap="round" opacity={stroke.opacity} />
-                  </G>
-                }
-                return <Path key={i} d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width}
-                  fill="none" strokeLinecap={stroke.strokeLinecap || 'round'} strokeLinejoin={stroke.strokeLinejoin || 'round'}
-                  strokeDasharray={stroke.strokeDasharray} opacity={stroke.opacity ?? 0.8} />
-              }
-              return null
-            })}
-          </Svg>
+          <View style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE * 1.25, backgroundColor: '#fff', borderRadius: 8, overflow: 'hidden' }}>
+            <ColoringPageRenderer
+              pageId={pageId}
+              width={PREVIEW_SIZE}
+              height={PREVIEW_SIZE * 1.25}
+              regionColors={regionColors}
+            />
+            {strokes.length > 0 && (
+              <Svg width={PREVIEW_SIZE} height={PREVIEW_SIZE * 1.25} viewBox="0 0 400 500" style={{ position: 'absolute', top: 0, left: 0 }}>
+                {strokes.map((s: any, i: number) => renderStroke(s, i))}
+              </Svg>
+            )}
+          </View>
         </View>
 
         <Text style={styles.nameLabel}>{t('nameYourCharacter')}</Text>

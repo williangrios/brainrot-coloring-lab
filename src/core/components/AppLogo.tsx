@@ -7,7 +7,12 @@ interface AppLogoProps {
 
 const AppLogo: React.FC<AppLogoProps> = ({ size = 32 }) => {
   return (
-    <View style={[styles.container, { width: size, height: size, borderRadius: size * 0.22 }]}>
+    <View
+      style={[
+        styles.container,
+        { width: size, height: size, borderRadius: size * 0.22 },
+      ]}
+    >
       <Image
         source={require('../../../assets/icon.png')}
         style={{ width: size, height: size, borderRadius: size * 0.22 }}
@@ -20,6 +25,7 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 32 }) => {
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
+    marginBottom: 20,
   },
 })
 

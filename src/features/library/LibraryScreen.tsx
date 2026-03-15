@@ -1,49 +1,58 @@
 import React, { useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Alert, Share } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
-import Svg, { Path, G } from 'react-native-svg'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import Header from '../../core/components/Header'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { useCredits } from '../../core/context/CreditsContext'
 import { getDrawings, deleteDrawing, Drawing } from '../../core/storage/drawingStorage'
-import { headComponents, bodyComponents, environmentComponents } from '../../features/creation/data/partsRegistry'
+import Svg, { Path, G } from 'react-native-svg'
+import ColoringPageRenderer from '../painting/pages'
+import { TOOL_RENDER_CONFIG } from '../painting/data/tools'
+
+function renderStroke(stroke: any, i: number) {
+  if (stroke.strands) {
+    return <G key={i}>{stroke.strands.map((d: string, j: number) => (
+      <Path key={j} d={d} stroke={stroke.color} strokeWidth={stroke.width} fill="none" strokeLinecap="round" opacity={stroke.opacity} />
+    ))}</G>
+  } else if (stroke.pathD) {
+    return <Path key={i} d={stroke.pathD} fill={stroke.color} opacity={stroke.opacity ?? 0.6} />
+  } else if (stroke.points) {
+    const cfg = TOOL_RENDER_CONFIG[stroke.type]
+    if (cfg?.passes) {
+      return <G key={i}>{Array.from({ length: cfg.passes }).map((_, p) => (
+        <Path key={p} d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width + p * (cfg.passWidthInc || 3)} fill="none" strokeLinecap="round" opacity={cfg.passOpacity || 0.15} />
+      ))}</G>
+    }
+    if (stroke.glowWidth) {
+      return <G key={i}>
+        <Path d={stroke.points} stroke={stroke.color} strokeWidth={stroke.glowWidth} fill="none" strokeLinecap="round" opacity={stroke.glowOpacity ?? 0.25} />
+        <Path d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width} fill="none" strokeLinecap="round" opacity={stroke.opacity} />
+      </G>
+    }
+    return <Path key={i} d={stroke.points} stroke={stroke.color} strokeWidth={stroke.width}
+      fill="none" strokeLinecap={stroke.strokeLinecap || 'round'} strokeLinejoin={stroke.strokeLinejoin || 'round'}
+      strokeDasharray={stroke.strokeDasharray} opacity={stroke.opacity ?? 0.8} />
+  }
+  return null
+}
 
 function DrawingPreview({ drawing, size = 140 }: { drawing: Drawing; size?: number }) {
-  const Head = headComponents[drawing.headId]
-  const Body = bodyComponents[drawing.bodyId]
-  const Env = environmentComponents[drawing.environmentId]
   const drawStrokes = drawing.strokes || []
-  const cw = drawing.canvasWidth || 400
-  const ch = drawing.canvasHeight || 500
   return (
-    <Svg width={size} height={size * 1.25} viewBox={`0 0 ${cw} ${ch}`}>
-      <G transform={`scale(${cw / 400})`}>
-        {Env && <Env fills={drawing.fills} />}
-        {Body && <Body fills={drawing.fills} />}
-        {Head && <Head fills={drawing.fills} />}
-      </G>
-      {drawStrokes.map((stroke: any, i: number) => {
-        if (stroke.type === 'spray') {
-          if (stroke.pathD) {
-            return <Path key={i} d={stroke.pathD} fill={stroke.color} opacity={0.6} />
-          }
-          return null
-        }
-        return (
-          <Path
-            key={i}
-            d={stroke.points}
-            stroke={stroke.color}
-            strokeWidth={stroke.width}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={stroke.type === 'eraser' ? 1 : 0.8}
-          />
-        )
-      })}
-    </Svg>
+    <View style={{ width: size, height: size * 1.25, backgroundColor: '#fff', borderRadius: 6, overflow: 'hidden' }}>
+      <ColoringPageRenderer
+        pageId={drawing.pageId}
+        width={size}
+        height={size * 1.25}
+        regionColors={drawing.regionColors || {}}
+      />
+      {drawStrokes.length > 0 && (
+        <Svg width={size} height={size * 1.25} viewBox="0 0 400 500" style={{ position: 'absolute', top: 0, left: 0 }}>
+          {drawStrokes.map((s: any, i: number) => renderStroke(s, i))}
+        </Svg>
+      )}
+    </View>
   )
 }
 

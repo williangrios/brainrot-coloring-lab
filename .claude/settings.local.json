@@ -10,7 +10,13 @@
       "WebFetch(domain:sarahrenaeclark.com)",
       "Bash(npx expo:*)",
       "Bash(find /c/Users/User/projetos/brainrot-coloring-lab/src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.json\" \\\\\\) 2>/dev/null | sort)",
-      "Bash(grep -n \"^  },$\" /c/Users/User/projetos/brainrot-coloring-lab/src/i18n/translations.ts)"
+      "Bash(grep -n \"^  },$\" /c/Users/User/projetos/brainrot-coloring-lab/src/i18n/translations.ts)",
+      "Bash(cd \"C:/Users/User/projetos/brainrot-coloring-lab\" && node add_translations.js)",
+      "Bash(cd C:/Users/User/projetos/brainrot-coloring-lab && rm -rf src/features/creation && rm -f src/features/painting/utils/pointInPath.ts)",
+      "WebFetch(domain:github.com)",
+      "Bash(cd \"C:/Users/User/projetos/brainrot-coloring-lab\" && mv src/features/painting/pages/index.ts src/features/painting/pages/index.tsx)",
+      "Bash(grep -r \"fillRule\\\\|clipRule\\\\|evenodd\" node_modules/react-native-svg/lib/typescript/elements/*.d.ts 2>/dev/null | head -10)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

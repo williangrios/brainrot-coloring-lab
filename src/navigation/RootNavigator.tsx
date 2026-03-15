@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../core/types/navigation';
 import LanguageSelectScreen from '../features/onboarding/LanguageSelectScreen';

@@ -1,13 +1,16 @@
 import React, { useState, useCallback, useRef } from 'react'
 import {
-  View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent, Animated,
 } from 'react-native'
+import { PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../../core/types/navigation'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import { useLanguage } from '../../i18n/LanguageContext'
-import CharacterPreview from '../creation/components/CharacterPreview'
+import { getPageById } from '../../core/data/coloringPages'
+import ColoringPageRenderer from './pages'
+import { getPageRegionData } from './pages/regionPaths'
 import DrawingCanvas, { Stroke } from './components/DrawingCanvas'
 import ToolBar from './components/ToolBar'
 import ToneSlider from './components/ToneSlider'
@@ -22,7 +25,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Painting'>
 const ASPECT_RATIO = 500 / 400
 
 interface HistoryEntry {
-  fills: Record<string, string>
+  regionColors: Record<string, string>
   strokes: Stroke[]
 }
 
@@ -30,11 +33,14 @@ export default function PaintingScreen() {
   const route = useRoute<PaintingRoute>()
   const navigation = useNavigation<Nav>()
   const { t } = useLanguage()
-  const { headId, bodyId, environmentId } = route.params
+  const { pageId } = route.params
 
-  const [fills, setFills] = useState<Record<string, string>>({})
+  const page = getPageById(pageId)
+  const regionData = getPageRegionData(pageId)
+
+  const [regionColors, setRegionColors] = useState<Record<string, string>>({})
   const [strokes, setStrokes] = useState<Stroke[]>([])
-  const [history, setHistory] = useState<HistoryEntry[]>([{ fills: {}, strokes: [] }])
+  const [history, setHistory] = useState<HistoryEntry[]>([{ regionColors: {}, strokes: [] }])
   const [historyIndex, setHistoryIndex] = useState(0)
   const [selectedTool, setSelectedTool] = useState<ToolType>('fill')
   const [selectedColor, setSelectedColor] = useState('#FF0000')
@@ -42,18 +48,48 @@ export default function PaintingScreen() {
   const [brushSize, setBrushSize] = useState(14)
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number } | null>(null)
   const [recentColors, setRecentColors] = useState<string[]>([])
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [brushSliderDismissed, setBrushSliderDismissed] = useState(false)
+
+  // Pinch-to-zoom
+  const baseScale = useRef(new Animated.Value(1)).current
+  const pinchScale = useRef(new Animated.Value(1)).current
+  const lastScale = useRef(1)
+  const scale = Animated.multiply(baseScale, pinchScale)
+
+  const onPinchEvent = Animated.event(
+    [{ nativeEvent: { scale: pinchScale } }],
+    { useNativeDriver: true }
+  )
+
+  const onPinchStateChange = useCallback((event: any) => {
+    if (event.nativeEvent.oldState === GestureState.ACTIVE) {
+      const newScale = Math.min(5, Math.max(1, lastScale.current * event.nativeEvent.scale))
+      lastScale.current = newScale
+      baseScale.setValue(newScale)
+      pinchScale.setValue(1)
+    }
+  }, [baseScale, pinchScale])
 
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < history.length - 1
 
   const toolDef = TOOLS.find((t) => t.id === selectedTool)
   const isDrawingTool = toolDef?.isDrawingTool ?? false
-  const isEyedropper = selectedTool === 'eyedropper'
-  const showBrushSize = toolDef?.hasBrushSize ?? false
+  const isFillTool = selectedTool === 'fill'
+  const showBrushSize = (toolDef?.hasBrushSize ?? false) && !isDrawing && !brushSliderDismissed
   const effectiveBrushSize = toolDef?.fixedBrushSize ?? brushSize
 
-  const pushHistory = useCallback((newFills: Record<string, string>, newStrokes: Stroke[]) => {
-    setHistory((prev) => [...prev.slice(0, historyIndex + 1), { fills: newFills, strokes: newStrokes }])
+  const handleSelectTool = useCallback((tool: ToolType) => {
+    setSelectedTool(tool)
+    setBrushSliderDismissed(false)
+  }, [])
+
+  const handleDrawStart = useCallback(() => setIsDrawing(true), [])
+  const handleDrawEnd = useCallback(() => setIsDrawing(false), [])
+
+  const pushHistory = useCallback((newRegionColors: Record<string, string>, newStrokes: Stroke[]) => {
+    setHistory((prev) => [...prev.slice(0, historyIndex + 1), { regionColors: newRegionColors, strokes: newStrokes }])
     setHistoryIndex((prev) => prev + 1)
   }, [historyIndex])
 
@@ -75,33 +111,26 @@ export default function PaintingScreen() {
     addRecentColor(c)
   }, [addRecentColor])
 
-  // Fill or eyedropper: tap on SVG region
+  // Fill tool: tap a region to fill it
   const handleRegionPress = useCallback((regionId: string) => {
-    if (isEyedropper) {
-      const regionColor = fills[regionId] || '#FFFFFF'
-      setSelectedColor(regionColor)
-      setBaseColor(regionColor)
-      addRecentColor(regionColor)
-      return
-    }
-    if (selectedTool !== 'fill') return
-    const newFills = { ...fills, [regionId]: selectedColor }
-    setFills(newFills)
-    pushHistory(newFills, strokes)
-    addRecentColor(selectedColor)
-  }, [fills, strokes, selectedColor, selectedTool, isEyedropper, pushHistory, addRecentColor])
+    if (!isFillTool) return
+    const newColors = { ...regionColors, [regionId]: selectedColor }
+    setRegionColors(newColors)
+    pushHistory(newColors, strokes)
+  }, [isFillTool, regionColors, selectedColor, strokes, pushHistory])
 
+  // Drawing tools: stroke complete
   const handleStrokeComplete = useCallback((stroke: Stroke) => {
     const newStrokes = [...strokes, stroke]
     setStrokes(newStrokes)
-    pushHistory(fills, newStrokes)
-  }, [fills, strokes, pushHistory])
+    pushHistory(regionColors, newStrokes)
+  }, [strokes, regionColors, pushHistory])
 
   const handleUndo = useCallback(() => {
     if (!canUndo) return
     const i = historyIndex - 1
     setHistoryIndex(i)
-    setFills(history[i].fills)
+    setRegionColors(history[i].regionColors)
     setStrokes(history[i].strokes)
   }, [canUndo, historyIndex, history])
 
@@ -109,15 +138,15 @@ export default function PaintingScreen() {
     if (!canRedo) return
     const i = historyIndex + 1
     setHistoryIndex(i)
-    setFills(history[i].fills)
+    setRegionColors(history[i].regionColors)
     setStrokes(history[i].strokes)
   }, [canRedo, historyIndex, history])
 
   const handleFinish = () => {
     navigation.navigate('Finalization', {
-      headId, bodyId, environmentId, fills, strokes,
-      canvasWidth: canvasSize?.w || 400,
-      canvasHeight: canvasSize?.h || 500,
+      pageId,
+      regionColors,
+      strokes,
     })
   }
 
@@ -131,8 +160,15 @@ export default function PaintingScreen() {
 
   const toolLabel = toolDef ? t(toolDef.nameKey) : ''
 
-  // For drawing tools and eyedropper, CharacterPreview handles taps differently
-  const canvasRegionPress = (isDrawingTool) ? undefined : handleRegionPress
+  if (!page) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.container}>
+          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 100 }}>Page not found</Text>
+        </View>
+      </ScreenWrapper>
+    )
+  }
 
   return (
     <ScreenWrapper>
@@ -153,71 +189,75 @@ export default function PaintingScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Canvas area with zoom */}
+        {/* Canvas area */}
         <View style={styles.canvasOuter} onLayout={handleCanvasLayout}>
           {canvasSize && (
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={styles.scrollContent}
-              maximumZoomScale={5}
-              minimumZoomScale={1}
-              bouncesZoom
-              centerContent
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={!isDrawingTool}
+            <PinchGestureHandler
+              onGestureEvent={onPinchEvent}
+              onHandlerStateChange={onPinchStateChange}
+              enabled={!isDrawing}
             >
-              <View style={{ width: canvasSize.w, height: canvasSize.h }}>
-                <CharacterPreview
-                  headId={headId} bodyId={bodyId} environmentId={environmentId}
-                  fills={fills} onRegionPress={canvasRegionPress}
-                  width={canvasSize.w} height={canvasSize.h}
-                />
-                <DrawingCanvas
-                  width={canvasSize.w}
-                  height={canvasSize.h}
-                  tool={selectedTool}
-                  color={selectedColor}
-                  brushSize={effectiveBrushSize}
-                  strokes={strokes}
-                  onStrokeComplete={handleStrokeComplete}
-                  enabled={isDrawingTool}
-                />
-              </View>
-            </ScrollView>
+              <Animated.View style={[styles.canvasCenter, { transform: [{ scale }] }]}>
+                <View style={{ width: canvasSize.w, height: canvasSize.h, backgroundColor: '#fff', borderRadius: 4, overflow: 'hidden' }}>
+                  {/* Layer 1: SVG coloring page with region fills */}
+                  <ColoringPageRenderer
+                    pageId={pageId}
+                    width={canvasSize.w}
+                    height={canvasSize.h}
+                    regionColors={regionColors}
+                    onRegionPress={isFillTool ? handleRegionPress : undefined}
+                  />
+                  {/* Layer 2: Drawing strokes overlay */}
+                  <View style={StyleSheet.absoluteFill} pointerEvents={isDrawingTool ? 'auto' : 'none'}>
+                    <DrawingCanvas
+                      width={canvasSize.w}
+                      height={canvasSize.h}
+                      tool={selectedTool}
+                      color={selectedColor}
+                      brushSize={effectiveBrushSize}
+                      strokes={strokes}
+                      onStrokeComplete={handleStrokeComplete}
+                      enabled={isDrawingTool}
+                      regionData={regionData}
+                      onDrawStart={handleDrawStart}
+                      onDrawEnd={handleDrawEnd}
+                    />
+                  </View>
+                </View>
+              </Animated.View>
+            </PinchGestureHandler>
           )}
-          {/* Brush size slider as sibling to avoid gesture conflicts */}
-          <View style={styles.sliderOverlay} pointerEvents="box-none">
-            <BrushSizeSlider size={brushSize} onSizeChange={setBrushSize} visible={showBrushSize} />
-          </View>
+          {showBrushSize && (
+            <View style={styles.sliderOverlay} pointerEvents="box-none">
+              <BrushSizeSlider size={brushSize} onSizeChange={setBrushSize} visible={true} onClose={() => setBrushSliderDismissed(true)} />
+            </View>
+          )}
         </View>
 
         {/* Bottom panel */}
         <View style={styles.bottomPanel}>
-          {/* Tool icons row */}
-          <ToolBar selectedTool={selectedTool} onSelectTool={setSelectedTool} />
-
-          {/* Tone slider */}
-          <ToneSlider baseColor={baseColor} selectedColor={selectedColor} onSelectColor={handleSelectTone} />
-
-          {/* Palette bar + colors */}
-          <PaletteBar selectedColor={selectedColor} onSelectColor={handleSelectColor} recentColors={recentColors} />
-
-          {/* Bottom controls: undo/redo */}
-          <View style={styles.bottomControls}>
-            <TouchableOpacity
-              style={[styles.historyBtn, !canUndo && styles.historyBtnDisabled]}
-              onPress={handleUndo} disabled={!canUndo}
-            >
-              <Undo2 color={canUndo ? '#fff' : '#444'} size={18} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.historyBtn, !canRedo && styles.historyBtnDisabled]}
-              onPress={handleRedo} disabled={!canRedo}
-            >
-              <Redo2 color={canRedo ? '#fff' : '#444'} size={18} />
-            </TouchableOpacity>
+          <View style={styles.toolRow}>
+            <View style={styles.toolRowSide}>
+              <TouchableOpacity
+                style={[styles.historyBtn, !canUndo && styles.historyBtnDisabled]}
+                onPress={handleUndo} disabled={!canUndo}
+              >
+                <Undo2 color={canUndo ? '#fff' : '#444'} size={16} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.historyBtn, !canRedo && styles.historyBtnDisabled]}
+                onPress={handleRedo} disabled={!canRedo}
+              >
+                <Redo2 color={canRedo ? '#fff' : '#444'} size={16} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.toolRowCenter}>
+              <ToolBar selectedTool={selectedTool} onSelectTool={handleSelectTool} />
+            </View>
           </View>
+
+          <ToneSlider baseColor={baseColor} selectedColor={selectedColor} onSelectColor={handleSelectTone} />
+          <PaletteBar selectedColor={selectedColor} onSelectColor={handleSelectColor} recentColors={recentColors} />
         </View>
       </View>
     </ScreenWrapper>
@@ -235,11 +275,13 @@ const styles = StyleSheet.create({
   colorPreviewLabel: { color: '#aaa', fontSize: 13, fontWeight: '600' },
   finishBtn: { backgroundColor: '#00ff88', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 14 },
   finishText: { color: '#111', fontSize: 14, fontWeight: '700' },
-  canvasOuter: { flex: 1 },
-  scrollContent: { alignItems: 'center', justifyContent: 'center', minHeight: '100%' },
+  canvasOuter: { flex: 1, overflow: 'hidden' },
+  canvasCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   sliderOverlay: { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 },
   bottomPanel: { backgroundColor: '#1a1a1a', borderTopWidth: 1, borderTopColor: '#333' },
-  bottomControls: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 6, gap: 12 },
-  historyBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
+  toolRow: { flexDirection: 'row', alignItems: 'center' },
+  toolRowSide: { flexDirection: 'column', gap: 4, paddingHorizontal: 4, paddingVertical: 4 },
+  toolRowCenter: { flex: 1 },
+  historyBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
   historyBtnDisabled: { opacity: 0.3 },
 })

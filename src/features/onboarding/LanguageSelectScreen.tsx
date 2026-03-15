@@ -45,40 +45,42 @@ export default function LanguageSelectScreen() {
 
   return (
     <ScreenWrapper backgroundColor="#0a0a0a">
-    <View style={styles.container}>
-      <AppLogo size={64} />
-      <Text style={styles.subtitle}>Brainrot Coloring Lab</Text>
+      <View style={styles.container}>
+        <AppLogo size={140} />
 
-      <FlatList
-        data={languages}
-        keyExtractor={(item) => item.code}
-        numColumns={2}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.langButton,
-              language === item.code && styles.langButtonActive,
-            ]}
-            onPress={() => handleSelect(item.code)}
-          >
-            <Text style={styles.flag}>{item.flag}</Text>
-            <Text
+        <FlatList
+          data={languages}
+          keyExtractor={(item) => item.code}
+          numColumns={2}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <TouchableOpacity
               style={[
-                styles.langText,
-                language === item.code && styles.langTextActive,
+                styles.langButton,
+                language === item.code && styles.langButtonActive,
               ]}
+              onPress={() => handleSelect(item.code)}
             >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
+              <Text style={styles.flag}>{item.flag}</Text>
+              <Text
+                style={[
+                  styles.langText,
+                  language === item.code && styles.langTextActive,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          )}
+        />
 
-      <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-        <Text style={styles.continueText}>{t('continue')}</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={handleContinue}
+        >
+          <Text style={styles.continueText}>{t('continue')}</Text>
+        </TouchableOpacity>
+      </View>
     </ScreenWrapper>
   )
 }
