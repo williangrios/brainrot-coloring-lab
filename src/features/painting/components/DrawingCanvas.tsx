@@ -99,6 +99,54 @@ function generateGlitter(x: number, y: number, radius: number): string {
 
 interface Point { x: number; y: number }
 
+// Minimum squared distance between consecutive points (skip redundant touch events)
+const MIN_DIST_SQ = 4 // ~2px in viewBox space — imperceptible, saves tons of points
+
+// Douglas-Peucker path simplification — removes points that don't affect the shape
+function simplifyPoints(pts: Point[], tolerance: number): Point[] {
+  if (pts.length <= 2) return pts
+
+  // Find the point farthest from the line between first and last
+  const first = pts[0]
+  const last = pts[pts.length - 1]
+  let maxDist = 0
+  let maxIdx = 0
+
+  const dx = last.x - first.x
+  const dy = last.y - first.y
+  const lenSq = dx * dx + dy * dy
+
+  for (let i = 1; i < pts.length - 1; i++) {
+    let dist: number
+    if (lenSq === 0) {
+      // first and last are the same point
+      const ex = pts[i].x - first.x
+      const ey = pts[i].y - first.y
+      dist = Math.sqrt(ex * ex + ey * ey)
+    } else {
+      // Perpendicular distance from point to line
+      const t = ((pts[i].x - first.x) * dx + (pts[i].y - first.y) * dy) / lenSq
+      const projX = first.x + t * dx
+      const projY = first.y + t * dy
+      const ex = pts[i].x - projX
+      const ey = pts[i].y - projY
+      dist = Math.sqrt(ex * ex + ey * ey)
+    }
+    if (dist > maxDist) {
+      maxDist = dist
+      maxIdx = i
+    }
+  }
+
+  if (maxDist > tolerance) {
+    const left = simplifyPoints(pts.slice(0, maxIdx + 1), tolerance)
+    const right = simplifyPoints(pts.slice(maxIdx), tolerance)
+    return left.slice(0, -1).concat(right)
+  }
+
+  return [first, last]
+}
+
 // Build smooth SVG path using quadratic Bézier curves through midpoints
 function buildSmoothPath(pts: Point[]): string {
   if (pts.length === 0) return ''
@@ -470,7 +518,8 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       currentScatterD.current = ''
     } else if (t === 'fuzzy') {
       if (currentPoints.current.length > 1) {
-        const strands = generateFuzzyStrands(currentPoints.current, cfg?.strandCount ?? 6)
+        const simplified = simplifyPoints(currentPoints.current, 0.8)
+        const strands = generateFuzzyStrands(simplified, cfg?.strandCount ?? 6)
         onStrokeCompleteRef.current({
           type: 'fuzzy',
           strands,
@@ -485,10 +534,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       currentPathD.current = ''
     } else {
       if (currentPoints.current.length > 1) {
+        // Simplify path before storing — reduces SVG complexity for committed strokes
+        const simplified = simplifyPoints(currentPoints.current, 0.8)
         const effectiveWidth = t === 'eraser' ? bs * 2 : bs
         onStrokeCompleteRef.current({
           type: t,
-          points: buildSmoothPath(currentPoints.current),
+          points: buildSmoothPath(simplified),
           color: t === 'eraser' ? 'white' : c,
           width: effectiveWidth,
           opacity: cfg?.opacity ?? 0.8,
@@ -577,9 +628,17 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           currentScatterD.current += d
           setLiveScatterD(currentScatterD.current)
         } else {
-          const prevLen = currentPoints.current.length
-          currentPoints.current.push({ x, y })
-          const d = appendSmoothPath(currentPoints.current, currentPathD.current, prevLen)
+          // Skip points too close to the previous one (reduces work significantly)
+          const pts = currentPoints.current
+          if (pts.length > 0) {
+            const prev = pts[pts.length - 1]
+            const dx = x - prev.x
+            const dy = y - prev.y
+            if (dx * dx + dy * dy < MIN_DIST_SQ) return
+          }
+          const prevLen = pts.length
+          pts.push({ x, y })
+          const d = appendSmoothPath(pts, currentPathD.current, prevLen)
           currentPathD.current = d
           setLivePathD(d)
         }
