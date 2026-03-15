@@ -10,26 +10,30 @@ export interface ToolDef {
   emoji: string
   isDrawingTool: boolean
   hasBrushSize: boolean
+  hasOpacity: boolean
   fixedBrushSize?: number
 }
 
+// Tools that support user-adjustable opacity (premium feature)
+export const OPACITY_TOOLS = new Set<ToolType>(['brush', 'crayon', 'marker', 'fine_tip', 'flat_brush'])
+
 export const TOOLS: ToolDef[] = [
-  { id: 'fill', nameKey: 'tool_fill', emoji: '🪣', isDrawingTool: false, hasBrushSize: false },
-  { id: 'brush', nameKey: 'tool_brush', emoji: '🖌️', isDrawingTool: true, hasBrushSize: true },
-  { id: 'crayon', nameKey: 'tool_crayon', emoji: '🖍️', isDrawingTool: true, hasBrushSize: true },
-  { id: 'marker', nameKey: 'tool_marker', emoji: '🖊️', isDrawingTool: true, hasBrushSize: true },
-  { id: 'thick_pencil', nameKey: 'tool_thick_pencil', emoji: '✏️', isDrawingTool: true, hasBrushSize: false, fixedBrushSize: 20 },
-  { id: 'fine_tip', nameKey: 'tool_fine_tip', emoji: '🔖', isDrawingTool: true, hasBrushSize: false, fixedBrushSize: 2 },
-  { id: 'flat_brush', nameKey: 'tool_flat_brush', emoji: '🔲', isDrawingTool: true, hasBrushSize: true },
-  { id: 'watercolor', nameKey: 'tool_watercolor', emoji: '💧', isDrawingTool: true, hasBrushSize: true },
-  { id: 'spray', nameKey: 'tool_spray', emoji: '💨', isDrawingTool: true, hasBrushSize: true },
-  { id: 'airbrush', nameKey: 'tool_airbrush', emoji: '🌫️', isDrawingTool: true, hasBrushSize: true },
-  { id: 'laser', nameKey: 'tool_laser', emoji: '⚡', isDrawingTool: true, hasBrushSize: false, fixedBrushSize: 2 },
-  { id: 'neon', nameKey: 'tool_neon', emoji: '✨', isDrawingTool: true, hasBrushSize: false, fixedBrushSize: 4 },
-  { id: 'glitter', nameKey: 'tool_glitter', emoji: '💎', isDrawingTool: true, hasBrushSize: true },
-  { id: 'fuzzy', nameKey: 'tool_fuzzy', emoji: '🧶', isDrawingTool: true, hasBrushSize: true },
-  { id: 'eraser', nameKey: 'tool_eraser', emoji: '🧹', isDrawingTool: true, hasBrushSize: true },
-  { id: 'eyedropper', nameKey: 'tool_eyedropper', emoji: '💉', isDrawingTool: false, hasBrushSize: false },
+  { id: 'fill', nameKey: 'tool_fill', emoji: '🪣', isDrawingTool: false, hasBrushSize: false, hasOpacity: false },
+  { id: 'brush', nameKey: 'tool_brush', emoji: '🖌️', isDrawingTool: true, hasBrushSize: true, hasOpacity: true },
+  { id: 'crayon', nameKey: 'tool_crayon', emoji: '🖍️', isDrawingTool: true, hasBrushSize: true, hasOpacity: true },
+  { id: 'marker', nameKey: 'tool_marker', emoji: '🖊️', isDrawingTool: true, hasBrushSize: true, hasOpacity: true },
+  { id: 'thick_pencil', nameKey: 'tool_thick_pencil', emoji: '✏️', isDrawingTool: true, hasBrushSize: false, hasOpacity: false, fixedBrushSize: 20 },
+  { id: 'fine_tip', nameKey: 'tool_fine_tip', emoji: '🔖', isDrawingTool: true, hasBrushSize: false, hasOpacity: true, fixedBrushSize: 2 },
+  { id: 'flat_brush', nameKey: 'tool_flat_brush', emoji: '🔲', isDrawingTool: true, hasBrushSize: true, hasOpacity: true },
+  { id: 'watercolor', nameKey: 'tool_watercolor', emoji: '💧', isDrawingTool: true, hasBrushSize: true, hasOpacity: false },
+  { id: 'spray', nameKey: 'tool_spray', emoji: '💨', isDrawingTool: true, hasBrushSize: true, hasOpacity: false },
+  { id: 'airbrush', nameKey: 'tool_airbrush', emoji: '🌫️', isDrawingTool: true, hasBrushSize: true, hasOpacity: false },
+  { id: 'laser', nameKey: 'tool_laser', emoji: '⚡', isDrawingTool: true, hasBrushSize: false, hasOpacity: false, fixedBrushSize: 2 },
+  { id: 'neon', nameKey: 'tool_neon', emoji: '✨', isDrawingTool: true, hasBrushSize: false, hasOpacity: false, fixedBrushSize: 4 },
+  { id: 'glitter', nameKey: 'tool_glitter', emoji: '💎', isDrawingTool: true, hasBrushSize: true, hasOpacity: false },
+  { id: 'fuzzy', nameKey: 'tool_fuzzy', emoji: '🧶', isDrawingTool: true, hasBrushSize: true, hasOpacity: false },
+  { id: 'eraser', nameKey: 'tool_eraser', emoji: '🧽', isDrawingTool: true, hasBrushSize: true, hasOpacity: false },
+  { id: 'eyedropper', nameKey: 'tool_eyedropper', emoji: '💉', isDrawingTool: false, hasBrushSize: false, hasOpacity: false },
 ]
 
 // Stroke rendering config for each tool type
@@ -51,7 +55,7 @@ export const TOOL_RENDER_CONFIG: Record<string, ToolRenderConfig> = {
   brush:        { opacity: 0.8, strokeLinecap: 'round', strokeLinejoin: 'round' },
   eraser:       { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round' },
   crayon:       { opacity: 0.7, strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: '4,2,1,2' },
-  thick_pencil: { opacity: 1.0, strokeLinecap: 'square', strokeLinejoin: 'round' },
+  thick_pencil: { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round' },
   fine_tip:     { opacity: 1.0, strokeLinecap: 'round', strokeLinejoin: 'round' },
   marker:       { opacity: 0.5, strokeLinecap: 'square', strokeLinejoin: 'round' },
   flat_brush:   { opacity: 0.85, strokeLinecap: 'butt', strokeLinejoin: 'miter' },

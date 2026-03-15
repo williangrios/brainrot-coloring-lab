@@ -16,6 +16,7 @@ import ToolBar from './components/ToolBar'
 import ToneSlider from './components/ToneSlider'
 import PaletteBar from './components/PaletteBar'
 import BrushSizeSlider from './components/BrushSizeSlider'
+import OpacitySlider from './components/OpacitySlider'
 import { ToolType, TOOLS } from './data/tools'
 import { Undo2, Redo2 } from 'lucide-react-native'
 
@@ -49,7 +50,11 @@ export default function PaintingScreen() {
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number } | null>(null)
   const [recentColors, setRecentColors] = useState<string[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
+  const [brushOpacity, setBrushOpacity] = useState(1.0)
   const [brushSliderDismissed, setBrushSliderDismissed] = useState(false)
+  const previousColorRef = useRef(selectedColor)
+  const canvasOuterRef = useRef<View>(null)
+  const canvasOuterLayout = useRef({ x: 0, y: 0, width: 0, height: 0 })
 
   // Pinch-to-zoom with focal point
   const scaleVal = useRef(new Animated.Value(1)).current
@@ -61,27 +66,47 @@ export default function PaintingScreen() {
   const pinchFocalX = useRef(0)
   const pinchFocalY = useRef(0)
 
+  // Convert screen focal point to canvas-center-relative coordinates
+  const toCanvasRelative = useCallback((fx: number, fy: number) => {
+    const layout = canvasOuterLayout.current
+    // Focal point is relative to the PinchGestureHandler view (canvasOuter)
+    // The Animated.View is centered within canvasOuter via flex align/justify
+    const cw = canvasSize?.w ?? layout.width
+    const ch = canvasSize?.h ?? layout.height
+    // Canvas is centered — compute its offset within the outer container
+    const canvasLeft = (layout.width - cw) / 2
+    const canvasTop = (layout.height - ch) / 2
+    // Convert to coordinates relative to the canvas center
+    return {
+      x: fx - canvasLeft - cw / 2,
+      y: fy - canvasTop - ch / 2,
+    }
+  }, [canvasSize])
+
   const onPinchEvent = useCallback((event: any) => {
     const { scale, focalX, focalY } = event.nativeEvent
     const clampedScale = Math.min(5, Math.max(1, lastScale.current * scale))
 
-    // On first move, capture focal point
+    // On first move, capture focal point relative to canvas center
     if (pinchFocalX.current === 0 && pinchFocalY.current === 0) {
-      pinchFocalX.current = focalX
-      pinchFocalY.current = focalY
+      const rel = toCanvasRelative(focalX, focalY)
+      pinchFocalX.current = rel.x
+      pinchFocalY.current = rel.y
     }
 
     // Translate so zoom centers on focal point
     const fx = pinchFocalX.current
     const fy = pinchFocalY.current
-    const ds = clampedScale / lastScale.current
-    const newTx = lastTranslateX.current + fx * (1 - ds)
-    const newTy = lastTranslateY.current + fy * (1 - ds)
+    const newScale = clampedScale
+    const prevScale = lastScale.current
+    // Scale change from the base (not from current animated value)
+    const newTx = lastTranslateX.current + fx * (1 - newScale / prevScale)
+    const newTy = lastTranslateY.current + fy * (1 - newScale / prevScale)
 
-    scaleVal.setValue(clampedScale)
+    scaleVal.setValue(newScale)
     translateX.setValue(newTx)
     translateY.setValue(newTy)
-  }, [scaleVal, translateX, translateY])
+  }, [scaleVal, translateX, translateY, toCanvasRelative])
 
   const onPinchStateChange = useCallback((event: any) => {
     if (event.nativeEvent.oldState === GestureState.ACTIVE) {
@@ -98,13 +123,14 @@ export default function PaintingScreen() {
       } else {
         const fx = pinchFocalX.current
         const fy = pinchFocalY.current
-        const ds = finalScale / lastScale.current
-        lastTranslateX.current = lastTranslateX.current + fx * (1 - ds)
-        lastTranslateY.current = lastTranslateY.current + fy * (1 - ds)
+        const newTx = lastTranslateX.current + fx * (1 - finalScale / lastScale.current)
+        const newTy = lastTranslateY.current + fy * (1 - finalScale / lastScale.current)
+        lastTranslateX.current = newTx
+        lastTranslateY.current = newTy
         lastScale.current = finalScale
         scaleVal.setValue(finalScale)
-        translateX.setValue(lastTranslateX.current)
-        translateY.setValue(lastTranslateY.current)
+        translateX.setValue(newTx)
+        translateY.setValue(newTy)
       }
 
       pinchFocalX.current = 0
@@ -119,12 +145,21 @@ export default function PaintingScreen() {
   const isDrawingTool = toolDef?.isDrawingTool ?? false
   const isFillTool = selectedTool === 'fill'
   const showBrushSize = (toolDef?.hasBrushSize ?? false) && !isDrawing && !brushSliderDismissed
+  const showOpacity = (toolDef?.hasOpacity ?? false) && !isDrawing
   const effectiveBrushSize = toolDef?.fixedBrushSize ?? brushSize
 
   const handleSelectTool = useCallback((tool: ToolType) => {
+    if (tool === 'eraser') {
+      if (selectedTool !== 'eraser') {
+        previousColorRef.current = selectedColor
+      }
+      setSelectedColor('#FFFFFF')
+    } else if (selectedTool === 'eraser') {
+      setSelectedColor(previousColorRef.current)
+    }
     setSelectedTool(tool)
     setBrushSliderDismissed(false)
-  }, [])
+  }, [selectedTool, selectedColor])
 
   const handleDrawStart = useCallback(() => setIsDrawing(true), [])
   const handleDrawEnd = useCallback(() => setIsDrawing(false), [])
@@ -191,6 +226,7 @@ export default function PaintingScreen() {
 
   const handleCanvasLayout = useCallback((e: LayoutChangeEvent) => {
     const { width: areaW, height: areaH } = e.nativeEvent.layout
+    canvasOuterLayout.current = { x: 0, y: 0, width: areaW, height: areaH }
     let w = areaW
     let h = w * ASPECT_RATIO
     if (h > areaH) { h = areaH; w = h / ASPECT_RATIO }
@@ -257,6 +293,7 @@ export default function PaintingScreen() {
                       tool={selectedTool}
                       color={selectedColor}
                       brushSize={effectiveBrushSize}
+                      brushOpacity={brushOpacity}
                       strokes={strokes}
                       onStrokeComplete={handleStrokeComplete}
                       enabled={isDrawingTool}
@@ -279,9 +316,23 @@ export default function PaintingScreen() {
               </Animated.View>
             </PinchGestureHandler>
           )}
-          {showBrushSize && (
+          {(showBrushSize || showOpacity) && (
             <View style={styles.sliderOverlay} pointerEvents="box-none">
-              <BrushSizeSlider size={brushSize} onSizeChange={setBrushSize} visible={true} onClose={() => setBrushSliderDismissed(true)} />
+              {showBrushSize && (
+                <BrushSizeSlider
+                  size={brushSize}
+                  onSizeChange={setBrushSize}
+                  visible={true}
+                  onClose={() => setBrushSliderDismissed(true)}
+                />
+              )}
+              {showOpacity && (
+                <OpacitySlider
+                  opacity={brushOpacity}
+                  onOpacityChange={setBrushOpacity}
+                  visible={true}
+                />
+              )}
             </View>
           )}
         </View>

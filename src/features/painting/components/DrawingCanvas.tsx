@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { View, PanResponder, StyleSheet } from 'react-native'
-import Svg, { Path, Defs, G, ClipPath, Mask, Rect, Circle as SvgCircle, Ellipse as SvgEllipse } from 'react-native-svg'
-import { ToolType, TOOL_RENDER_CONFIG } from '../data/tools'
+import Svg, { Path, Defs, G, Mask, Ellipse as SvgEllipse } from 'react-native-svg'
+import { ToolType, TOOL_RENDER_CONFIG, OPACITY_TOOLS } from '../data/tools'
 import { PageRegionData } from '../pages/regionPaths'
 import { flattenSvgPath, pointInPolygon, pointInEllipse, ellipseToPath } from '../utils/pointInPath'
 
@@ -50,6 +50,7 @@ interface DrawingCanvasProps {
   tool: ToolType
   color: string
   brushSize: number
+  brushOpacity?: number
   strokes: Stroke[]
   onStrokeComplete: (stroke: Stroke) => void
   enabled: boolean
@@ -280,6 +281,28 @@ function renderStroke(stroke: Stroke, index: number) {
     )
   }
 
+  // Brush tool: render as multiple parallel bristle strands for realistic paint effect
+  if (ps.type === 'brush' && ps.width >= 6) {
+    const bristleCount = Math.max(5, Math.round(ps.width / 2))
+    const bristles: React.ReactNode[] = []
+    const bristleW = Math.max(1.5, ps.width / bristleCount * 1.4)
+    for (let b = 0; b < bristleCount; b++) {
+      // Spread bristles across the brush width
+      const t = (b / (bristleCount - 1)) - 0.5  // -0.5 to 0.5
+      const offsetX = t * ps.width * 0.85
+      const offsetY = t * ps.width * 0.15
+      // Vary opacity per bristle for natural look
+      const bOpacity = ps.opacity * (0.5 + Math.abs(Math.sin(b * 2.7)) * 0.5)
+      bristles.push(
+        <Path key={b} d={ps.points} stroke={ps.color} strokeWidth={bristleW}
+          fill="none" strokeLinecap="round" strokeLinejoin="round"
+          opacity={bOpacity}
+          transform={`translate(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`} />
+      )
+    }
+    return <G key={index}>{bristles}</G>
+  }
+
   return (
     <Path key={index} d={ps.points} stroke={ps.color} strokeWidth={ps.width}
       fill="none" strokeLinecap={ps.strokeLinecap as any || 'round'}
@@ -303,6 +326,26 @@ function renderLivePreview(
 
   if (livePathD && PATH_TOOLS.has(tool)) {
     const w = brushSize
+
+    // Brush live preview with bristles
+    if (tool === 'brush' && w >= 6) {
+      const bristleCount = Math.max(5, Math.round(w / 2))
+      const bristleW = Math.max(1.5, w / bristleCount * 1.4)
+      const bristles: React.ReactNode[] = []
+      for (let b = 0; b < bristleCount; b++) {
+        const t = (b / (bristleCount - 1)) - 0.5
+        const offsetX = t * w * 0.85
+        const offsetY = t * w * 0.15
+        const bOpacity = (cfg?.opacity ?? 0.8) * (0.5 + Math.abs(Math.sin(b * 2.7)) * 0.5)
+        bristles.push(
+          <Path key={b} d={livePathD} stroke={color} strokeWidth={bristleW}
+            fill="none" strokeLinecap="round" strokeLinejoin="round"
+            opacity={bOpacity}
+            transform={`translate(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`} />
+        )
+      }
+      return <G>{bristles}</G>
+    }
 
     if (cfg?.passes) {
       return (
@@ -443,7 +486,7 @@ function hitTestRegion(
 }
 
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
-  width, height, tool, color, brushSize, strokes, onStrokeComplete, enabled, regionData, onDrawStart, onDrawEnd,
+  width, height, tool, color, brushSize, brushOpacity = 1.0, strokes, onStrokeComplete, enabled, regionData, onDrawStart, onDrawEnd,
 }) => {
   const currentPoints = useRef<Point[]>([])
   const currentPathD = useRef<string>('')  // cached smooth path string
@@ -463,10 +506,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const regionDataRef = useRef(regionData)
   const onDrawStartRef = useRef(onDrawStart)
   const onDrawEndRef = useRef(onDrawEnd)
+  const brushOpacityRef = useRef(brushOpacity)
   const clipRegionIdRef = useRef<string | null>(null)
   const clipPathDRef = useRef<string | null>(null)
 
   useEffect(() => { toolRef.current = tool }, [tool])
+  useEffect(() => { brushOpacityRef.current = brushOpacity }, [brushOpacity])
   useEffect(() => { colorRef.current = color }, [color])
   useEffect(() => { brushSizeRef.current = brushSize }, [brushSize])
   useEffect(() => { enabledRef.current = enabled }, [enabled])
@@ -503,6 +548,8 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const cfg = TOOL_RENDER_CONFIG[t]
     const clipId = clipRegionIdRef.current || undefined
     const clipD = clipPathDRef.current || undefined
+    // Apply user-set opacity for tools that support it
+    const userOpacity = OPACITY_TOOLS.has(t as ToolType) ? brushOpacityRef.current : 1.0
 
     if (SCATTER_TOOLS.has(t)) {
       if (currentScatterD.current.length > 0) {
@@ -542,7 +589,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           points: buildSmoothPath(simplified),
           color: t === 'eraser' ? 'white' : c,
           width: effectiveWidth,
-          opacity: cfg?.opacity ?? 0.8,
+          opacity: (cfg?.opacity ?? 0.8) * userOpacity,
           strokeLinecap: cfg?.strokeLinecap ?? 'round',
           strokeLinejoin: cfg?.strokeLinejoin ?? 'round',
           strokeDasharray: cfg?.strokeDasharray,
