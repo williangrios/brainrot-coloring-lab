@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { RootStackParamList } from '../../core/types/navigation'
 import { useLanguage } from '../../i18n/LanguageContext'
 
@@ -47,6 +48,7 @@ export default function EmailScreen() {
       // Simula latência
       await new Promise((r) => setTimeout(r, 400))
 
+      await AsyncStorage.setItem('@brainrot_onboarding_done', 'true')
       navigation.replace('Subscription')
     } catch {
       // Se falhar, segue mesmo assim (não bloquear o usuário por erro de rede)

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "brainrot-coloring-lab",
+    "name": "Brainrot Coloring",
     "slug": "brainrot-coloring-lab",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
@@ -13,9 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "br.com.wrsolucoesdigitais.brainrotcoloringlab"
     },
     "android": {
+      "package": "br.com.wrsolucoesdigitais.brainrotcoloringlab",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,6 +29,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-localization"]
+    "plugins": [
+      "expo-localization",
+      "expo-asset"
+    ]
   }
 }

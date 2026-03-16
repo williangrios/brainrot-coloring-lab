@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../core/types/navigation';
 import LanguageSelectScreen from '../features/onboarding/LanguageSelectScreen';
 import EmailScreen from '../features/onboarding/EmailScreen';
@@ -11,12 +12,23 @@ import FinalizationScreen from '../features/painting/FinalizationScreen';
 import TabNavigator from './TabNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const ONBOARDING_KEY = '@brainrot_onboarding_done';
 
 export default function RootNavigator() {
+  const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
+      setInitialRoute(val === 'true' ? 'Subscription' : 'LanguageSelect');
+    });
+  }, []);
+
+  if (!initialRoute) return null;
+
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
-      initialRouteName="LanguageSelect"
+      initialRouteName={initialRoute}
     >
       <Stack.Screen name="LanguageSelect" component={LanguageSelectScreen} />
       <Stack.Screen name="Email" component={EmailScreen} />

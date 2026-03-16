@@ -3,8 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 export interface Drawing {
   id: string
   pageId: string
-  regionColors?: Record<string, string>
-  strokes?: any[] // legacy
+  snapshotUri?: string
   name: string
   createdAt: number
   shared: boolean

@@ -93,7 +93,7 @@ export default function ProfileScreen() {
 
         <View style={styles.logoFooter}>
           <AppLogo size={130} />
-          <Text style={styles.logoText}>Brainrot Coloring Lab</Text>
+          <Text style={styles.logoText}>Brainrot Coloring</Text>
           <Text style={styles.logoVersion}>v1.0.0</Text>
         </View>
       </ScrollView>

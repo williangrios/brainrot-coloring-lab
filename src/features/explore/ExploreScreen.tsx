@@ -66,7 +66,7 @@ export default function ExploreScreen() {
               renderItem={({ item: page }) => (
                 <TouchableOpacity style={styles.pageThumb} onPress={() => handleSelectPage(page)} activeOpacity={0.7}>
                   <View pointerEvents="none">
-                    <ColoringPageRenderer pageId={page.id} width={100} height={110} regionColors={{}} />
+                    <ColoringPageRenderer pageId={page.id} width={100} height={110} />
                   </View>
                   <Text style={styles.thumbName} numberOfLines={1}>{t(page.nameKey) || page.name}</Text>
                 </TouchableOpacity>

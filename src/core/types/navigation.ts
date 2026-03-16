@@ -4,12 +4,14 @@ export type RootStackParamList = {
   Email: undefined
   Subscription: undefined
   MainTabs: undefined
-  Rating: undefined
+  Rating: {
+    onRate?: (positive: boolean) => void
+    onDismiss?: () => void
+  } | undefined
   Painting: { pageId: string }
   Finalization: {
     pageId: string
-    regionColors: Record<string, string>
-    strokes: any[]
+    snapshotDataUrl?: string
   }
 }
 

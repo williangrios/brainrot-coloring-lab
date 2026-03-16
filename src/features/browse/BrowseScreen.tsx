@@ -83,7 +83,7 @@ export default function BrowseScreen() {
       >
         <View style={styles.cardImageContainer}>
           <View pointerEvents="none">
-            <ColoringPageRenderer pageId={item.id} width={CARD_WIDTH - 16} height={CARD_WIDTH * 1.1 - 16} regionColors={{}} />
+            <ColoringPageRenderer pageId={item.id} width={CARD_WIDTH - 16} height={CARD_WIDTH * 1.1 - 16} />
           </View>
           {locked && (
             <View style={styles.lockOverlay}>

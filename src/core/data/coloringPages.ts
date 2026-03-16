@@ -1,4 +1,4 @@
-import { MOCK_PAGES, ApiColoringPage } from './mockApiPages'
+import { BITMAP_PAGES, BitmapColoringPage } from './bitmapPages'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -8,20 +8,23 @@ export interface ColoringPage {
   nameKey: string
   difficulty: Difficulty
   isPremiumResource: boolean
+  isBitmap: boolean
+  imageSource?: number
 }
 
-// Build page list from API data (currently mock)
-function apiToColoringPage(api: ApiColoringPage): ColoringPage {
+function bitmapToColoringPage(bp: BitmapColoringPage): ColoringPage {
   return {
-    id: api.id,
-    name: api.name,
-    nameKey: api.nameKey,
-    difficulty: api.difficulty,
-    isPremiumResource: api.isPremium,
+    id: bp.id,
+    name: bp.name,
+    nameKey: bp.id,
+    difficulty: bp.difficulty,
+    isPremiumResource: bp.isPremium,
+    isBitmap: true,
+    imageSource: bp.imageSource,
   }
 }
 
-export const coloringPages: ColoringPage[] = MOCK_PAGES.map(apiToColoringPage)
+export const coloringPages: ColoringPage[] = BITMAP_PAGES.map(bitmapToColoringPage)
 
 export function getPageById(id: string): ColoringPage | undefined {
   return coloringPages.find((p) => p.id === id)

@@ -90,7 +90,7 @@ export default function HomeScreen() {
                 <TouchableOpacity style={styles.pageCard} onPress={() => handleSelectPage(item)} activeOpacity={0.7}>
                   <View style={styles.pageImageWrap}>
                     <View pointerEvents="none">
-                      <ColoringPageRenderer pageId={item.id} width={110} height={120} regionColors={{}} />
+                      <ColoringPageRenderer pageId={item.id} width={110} height={120} />
                     </View>
                     <TouchableOpacity
                       style={styles.favBtn}
@@ -122,7 +122,7 @@ export default function HomeScreen() {
                     <TouchableOpacity style={styles.pageCard} onPress={() => handleSelectPage(item)} activeOpacity={0.7}>
                       <View style={styles.pageImageWrap}>
                         <View pointerEvents="none">
-                          <ColoringPageRenderer pageId={item.id} width={110} height={120} regionColors={{}} />
+                          <ColoringPageRenderer pageId={item.id} width={110} height={120} />
                         </View>
                         {item.isPremiumResource && !isPremium && (
                           <View style={styles.lockBadge}><Text style={styles.lockText}>🔒</Text></View>
@@ -152,7 +152,7 @@ export default function HomeScreen() {
                       activeOpacity={0.7}
                     >
                       <View style={styles.recentPreview}>
-                        <ColoringPageRenderer pageId={item.pageId} width={90} height={80} regionColors={item.regionColors || {}} />
+                        <ColoringPageRenderer pageId={item.pageId} width={90} height={80} />
                       </View>
                       <Text style={styles.recentName} numberOfLines={1}>{item.name}</Text>
                     </TouchableOpacity>

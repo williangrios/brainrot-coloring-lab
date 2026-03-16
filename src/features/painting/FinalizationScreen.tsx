@@ -10,6 +10,7 @@ import {
   Share,
   Linking,
   Platform,
+  Image,
 } from 'react-native'
 import {
   useNavigation,
@@ -25,9 +26,6 @@ import { useAppGate } from '../../core/context/AppGateContext'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { saveDrawing, generateId } from '../../core/storage/drawingStorage'
 import { getPageById } from '../../core/data/coloringPages'
-import Svg, { Path, G } from 'react-native-svg'
-import ColoringPageRenderer from './pages'
-import { TOOL_RENDER_CONFIG } from './data/tools'
 
 type FinalizationRoute = RouteProp<RootStackParamList, 'Finalization'>
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Finalization'>
@@ -38,12 +36,11 @@ const PREVIEW_SIZE = Math.min(SCREEN_WIDTH - 80, 250)
 export default function FinalizationScreen() {
   const route = useRoute<FinalizationRoute>()
   const navigation = useNavigation<Nav>()
-  const { pageId, regionColors, strokes = [] } = route.params
+  const { pageId, snapshotDataUrl } = route.params
   const { earnFromShare, shareCount } = useCredits()
   const { incrementDrawingCount, shouldShowRating } = useAppGate()
   const { t } = useLanguage()
 
-  // Count this drawing completion
   React.useEffect(() => {
     incrementDrawingCount()
   }, [])
@@ -65,8 +62,7 @@ export default function FinalizationScreen() {
     await saveDrawing({
       id: generateId(),
       pageId,
-      regionColors,
-      strokes,
+      snapshotUri: snapshotDataUrl,
       name: finalName.trim(),
       createdAt: Date.now(),
       shared: false,
@@ -79,52 +75,43 @@ export default function FinalizationScreen() {
     if (shareCount < 3) {
       const earned = await earnFromShare()
       if (earned) {
-        setShared(true)
         Alert.alert(t('creditEarned'), t('earnedCreditMsg'))
       }
-    } else {
-      setShared(true)
     }
+    setShared(true)
   }
 
   const handleShare = async () => {
-    if (!saved) await handleSave()
-    const message = t('shareMessage').replace('{name}', finalName)
-    Alert.alert(t('share'), message, [
-      {
-        text: 'Instagram',
-        onPress: async () => {
-          const igUrl =
-            Platform.OS === 'ios' ? 'instagram://camera' : 'instagram://share'
-          try {
-            await Linking.openURL(igUrl)
-          } catch {
-            await Linking.openURL('https://www.instagram.com')
-          }
-          await onShareComplete()
-        },
-      },
-      {
-        text: 'TikTok',
-        onPress: async () => {
-          try {
-            await Linking.openURL('snssdk1233://')
-          } catch {
-            await Linking.openURL('https://www.tiktok.com')
-          }
-          await onShareComplete()
-        },
-      },
-      { text: t('cancel'), style: 'cancel' },
-    ])
+    try {
+      const message = t('shareMessage').replace('{name}', finalName)
+      const result = await Share.share({ message })
+      if (result.action === Share.sharedAction) {
+        await onShareComplete()
+      }
+    } catch {
+      // Cancelled
+    }
+  }
+
+  const handleRate = async (positive: boolean) => {
+    if (positive) {
+      const storeUrl = Platform.OS === 'ios'
+        ? 'https://apps.apple.com/app/idXXXXXXXXXX'
+        : 'https://play.google.com/store/apps/details?id=br.com.wrsolucoesdigitais.brainrotcoloringlab'
+      try { await Linking.openURL(storeUrl) } catch { /* */ }
+    }
   }
 
   const handleDone = () => {
     if (shouldShowRating()) {
-      // Show rating modal, then go home when it's dismissed
-      navigation.navigate('Rating')
-      // After rating screen pops back, the user is still on Finalization.
-      // We'll add a listener to go home when we get focus back.
+      navigation.navigate('Rating', {
+        onRate: handleRate,
+        onDismiss: () => {
+          navigation.dispatch(
+            CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
+          )
+        },
+      })
     } else {
       navigation.dispatch(
         CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
@@ -132,12 +119,9 @@ export default function FinalizationScreen() {
     }
   }
 
-  // After returning from Rating screen, go to MainTabs
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // If user already rated (came back from Rating), go home
       if (saved && !shouldShowRating()) {
-        // Small delay to avoid navigation conflict
         setTimeout(() => {
           navigation.dispatch(
             CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
@@ -148,90 +132,6 @@ export default function FinalizationScreen() {
     return unsubscribe
   }, [navigation, saved, shouldShowRating])
 
-  const renderStroke = (stroke: any, i: number) => {
-    if (stroke.strands) {
-      return (
-        <G key={i}>
-          {stroke.strands.map((d: string, j: number) => (
-            <Path
-              key={j}
-              d={d}
-              stroke={stroke.color}
-              strokeWidth={stroke.width}
-              fill="none"
-              strokeLinecap="round"
-              opacity={stroke.opacity}
-            />
-          ))}
-        </G>
-      )
-    } else if (stroke.pathD) {
-      return (
-        <Path
-          key={i}
-          d={stroke.pathD}
-          fill={stroke.color}
-          opacity={stroke.opacity ?? 0.6}
-        />
-      )
-    } else if (stroke.points) {
-      const cfg = TOOL_RENDER_CONFIG[stroke.type]
-      if (cfg?.passes) {
-        return (
-          <G key={i}>
-            {Array.from({ length: cfg.passes }).map((_, p) => (
-              <Path
-                key={p}
-                d={stroke.points}
-                stroke={stroke.color}
-                strokeWidth={stroke.width + p * (cfg.passWidthInc || 3)}
-                fill="none"
-                strokeLinecap="round"
-                opacity={cfg.passOpacity || 0.15}
-              />
-            ))}
-          </G>
-        )
-      }
-      if (stroke.glowWidth) {
-        return (
-          <G key={i}>
-            <Path
-              d={stroke.points}
-              stroke={stroke.color}
-              strokeWidth={stroke.glowWidth}
-              fill="none"
-              strokeLinecap="round"
-              opacity={stroke.glowOpacity ?? 0.25}
-            />
-            <Path
-              d={stroke.points}
-              stroke={stroke.color}
-              strokeWidth={stroke.width}
-              fill="none"
-              strokeLinecap="round"
-              opacity={stroke.opacity}
-            />
-          </G>
-        )
-      }
-      return (
-        <Path
-          key={i}
-          d={stroke.points}
-          stroke={stroke.color}
-          strokeWidth={stroke.width}
-          fill="none"
-          strokeLinecap={stroke.strokeLinecap || 'round'}
-          strokeLinejoin={stroke.strokeLinejoin || 'round'}
-          strokeDasharray={stroke.strokeDasharray}
-          opacity={stroke.opacity ?? 0.8}
-        />
-      )
-    }
-    return null
-  }
-
   return (
     <ScreenWrapper>
       <View style={styles.container}>
@@ -240,27 +140,18 @@ export default function FinalizationScreen() {
           <View
             style={{
               width: PREVIEW_SIZE,
-              height: PREVIEW_SIZE * 1.25,
+              height: PREVIEW_SIZE,
               backgroundColor: '#fff',
               borderRadius: 8,
               overflow: 'hidden',
             }}
           >
-            <ColoringPageRenderer
-              pageId={pageId}
-              width={PREVIEW_SIZE}
-              height={PREVIEW_SIZE * 1.25}
-              regionColors={regionColors}
-            />
-            {strokes.length > 0 && (
-              <Svg
-                width={PREVIEW_SIZE}
-                height={PREVIEW_SIZE * 1.25}
-                viewBox="0 0 400 500"
-                style={{ position: 'absolute', top: 0, left: 0 }}
-              >
-                {strokes.map((s: any, i: number) => renderStroke(s, i))}
-              </Svg>
+            {snapshotDataUrl && (
+              <Image
+                source={{ uri: snapshotDataUrl }}
+                style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+                resizeMode="contain"
+              />
             )}
           </View>
         </View>
@@ -279,12 +170,7 @@ export default function FinalizationScreen() {
             style={[styles.nameOption, useCustom && styles.nameOptionSelected]}
             onPress={() => setUseCustom(true)}
           >
-            <Text
-              style={[
-                styles.nameOptionText,
-                useCustom && styles.nameOptionTextSelected,
-              ]}
-            >
+            <Text style={[styles.nameOptionText, useCustom && styles.nameOptionTextSelected]}>
               {t('customName')}
             </Text>
           </TouchableOpacity>
@@ -292,42 +178,37 @@ export default function FinalizationScreen() {
 
         {useCustom && (
           <TextInput
-            style={styles.nameInput}
-            placeholder={t('typeAName')}
-            placeholderTextColor="#666"
+            style={styles.input}
             value={customName}
             onChangeText={setCustomName}
+            placeholder={t('typeAName')}
+            placeholderTextColor="#666"
             maxLength={30}
           />
         )}
 
         <View style={styles.actions}>
-          {!saved && (
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-              <Text style={styles.saveBtnText}>{t('saveToLibrary')}</Text>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
-            style={[styles.shareBtn, shared && styles.shareBtnDone]}
+            style={[styles.saveBtn, saved && styles.savedBtn]}
+            onPress={saved ? handleDone : handleSave}
+          >
+            <Text style={styles.saveBtnText}>
+              {saved ? t('done') : t('saveToLibrary')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.shareBtn, shared && styles.sharedBtn]}
             onPress={handleShare}
             disabled={shared}
           >
             <Text style={styles.shareBtnText}>
-              {shared
-                ? t('shared')
-                : shareCount < 3
-                  ? t('shareAndEarn')
-                  : t('share')}
+              {shared ? t('shared') : t('shareAndEarn')}
             </Text>
           </TouchableOpacity>
-          {saved && (
-            <TouchableOpacity style={styles.doneBtn} onPress={handleDone}>
-              <Text style={styles.doneBtnText}>{t('done')}</Text>
-            </TouchableOpacity>
-          )}
         </View>
+
         {!shared && shareCount < 3 && (
-          <Text style={styles.hint}>
+          <Text style={styles.shareHint}>
             {t('shareHint').replace('{count}', String(3 - shareCount))}
           </Text>
         )}
@@ -337,83 +218,22 @@ export default function FinalizationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111',
-    padding: 20,
-    alignItems: 'center',
-  },
-  title: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 12 },
-  previewContainer: {
-    backgroundColor: '#0d0d0d',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#222',
-    marginBottom: 20,
-  },
-  nameLabel: {
-    color: '#888',
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  namesContainer: { alignSelf: 'stretch', gap: 8, marginBottom: 12 },
-  nameOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 2,
-    borderColor: '#333',
-  },
-  nameOptionSelected: { borderColor: '#00ff88', backgroundColor: '#0a2a18' },
-  nameOptionText: {
-    color: '#aaa',
-    fontSize: 15,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  container: { flex: 1, padding: 20, alignItems: 'center' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 16, textAlign: 'center' },
+  previewContainer: { marginBottom: 20, borderRadius: 12, overflow: 'hidden', elevation: 4 },
+  nameLabel: { color: '#aaa', fontSize: 13, marginBottom: 8 },
+  namesContainer: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  nameOption: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#222', borderWidth: 1, borderColor: '#333' },
+  nameOptionSelected: { backgroundColor: '#0a2a18', borderColor: '#00ff88' },
+  nameOptionText: { color: '#888', fontSize: 14, fontWeight: '600' },
   nameOptionTextSelected: { color: '#00ff88' },
-  nameInput: {
-    alignSelf: 'stretch',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#00ff88',
-    marginBottom: 12,
-  },
-  actions: { alignSelf: 'stretch', gap: 10, marginTop: 8 },
-  saveBtn: {
-    backgroundColor: '#1a1a1a',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#444',
-  },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  shareBtn: {
-    backgroundColor: '#00ff88',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  shareBtnDone: { backgroundColor: '#333' },
-  shareBtnText: { color: '#111', fontSize: 16, fontWeight: '700' },
-  doneBtn: {
-    backgroundColor: '#2a2a2a',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  hint: { color: '#FFD600', fontSize: 12, marginTop: 12, textAlign: 'center' },
+  input: { width: '100%', backgroundColor: '#1a1a1a', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, color: '#fff', fontSize: 16, marginBottom: 12, borderWidth: 1, borderColor: '#333' },
+  actions: { width: '100%', gap: 10, marginTop: 8 },
+  saveBtn: { backgroundColor: '#00ff88', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  savedBtn: { backgroundColor: '#00cc6a' },
+  saveBtnText: { color: '#111', fontSize: 16, fontWeight: '700' },
+  shareBtn: { backgroundColor: '#1a1a1a', paddingVertical: 14, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: '#00ff88' },
+  sharedBtn: { borderColor: '#444', opacity: 0.5 },
+  shareBtnText: { color: '#00ff88', fontSize: 16, fontWeight: '700' },
+  shareHint: { color: '#666', fontSize: 12, marginTop: 8, textAlign: 'center' },
 })
