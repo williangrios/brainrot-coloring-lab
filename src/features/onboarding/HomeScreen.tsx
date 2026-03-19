@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Heart } from 'lucide-react-native'
@@ -11,6 +11,7 @@ import { getDrawings, Drawing } from '../../core/storage/drawingStorage'
 import { coloringPages, ColoringPage, Difficulty } from '../../core/data/coloringPages'
 import { getFavorites, addFavorite, removeFavorite } from '../../core/storage/favoritesStorage'
 import { getPageById } from '../../core/data/coloringPages'
+import { useImages } from '../../core/api/useImages'
 import ColoringPageRenderer from '../../features/painting/pages'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -28,6 +29,8 @@ export default function HomeScreen() {
   const [recentDrawings, setRecentDrawings] = useState<Drawing[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
   const [premiumModal, setPremiumModal] = useState(false)
+
+  const { pages: remotePages } = useImages()
 
   useFocusEffect(
     useCallback(() => {
@@ -58,8 +61,20 @@ export default function HomeScreen() {
     }
   }
 
-  const freePages = coloringPages.filter((p) => !p.isPremiumResource)
-  const favPages = coloringPages.filter((p) => favorites.includes(p.id))
+  const allPages = useMemo(() => {
+    const seen = new Set<string>()
+    const merged: ColoringPage[] = []
+    for (const p of [...remotePages, ...coloringPages]) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id)
+        merged.push(p)
+      }
+    }
+    return merged
+  }, [remotePages])
+
+  const freePages = allPages.filter((p) => !p.isPremiumResource)
+  const favPages = allPages.filter((p) => favorites.includes(p.id))
 
   return (
     <ScreenWrapper noBottom>
@@ -90,7 +105,7 @@ export default function HomeScreen() {
                 <TouchableOpacity style={styles.pageCard} onPress={() => handleSelectPage(item)} activeOpacity={0.7}>
                   <View style={styles.pageImageWrap}>
                     <View pointerEvents="none">
-                      <ColoringPageRenderer pageId={item.id} width={110} height={120} />
+                      <ColoringPageRenderer pageId={item.id} width={110} height={120} thumbnailUrl={item.thumbnailUrl} />
                     </View>
                     <TouchableOpacity
                       style={styles.favBtn}
@@ -101,7 +116,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   </View>
                   <View style={styles.pageInfo}>
-                    <Text style={styles.pageName} numberOfLines={1}>{t(item.nameKey) || item.name}</Text>
+                    <Text style={styles.pageName} numberOfLines={1}>{item.name || t(item.nameKey)}</Text>
                     <View style={[styles.diffDot, { backgroundColor: DIFFICULTY_COLORS[item.difficulty] }]} />
                   </View>
                 </TouchableOpacity>
@@ -122,13 +137,13 @@ export default function HomeScreen() {
                     <TouchableOpacity style={styles.pageCard} onPress={() => handleSelectPage(item)} activeOpacity={0.7}>
                       <View style={styles.pageImageWrap}>
                         <View pointerEvents="none">
-                          <ColoringPageRenderer pageId={item.id} width={110} height={120} />
+                          <ColoringPageRenderer pageId={item.id} width={110} height={120} thumbnailUrl={item.thumbnailUrl} />
                         </View>
                         {item.isPremiumResource && !isPremium && (
                           <View style={styles.lockBadge}><Text style={styles.lockText}>🔒</Text></View>
                         )}
                       </View>
-                      <Text style={styles.pageName} numberOfLines={1}>{t(item.nameKey) || item.name}</Text>
+                      <Text style={styles.pageName} numberOfLines={1}>{item.name || t(item.nameKey)}</Text>
                     </TouchableOpacity>
                   )}
                 />

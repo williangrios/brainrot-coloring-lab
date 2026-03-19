@@ -13,7 +13,7 @@ export interface CanvasWebViewHandle {
 }
 
 interface CanvasWebViewProps {
-  imageSource: number
+  imageSource: number | string
   width: number
   height: number
   tool: ToolType

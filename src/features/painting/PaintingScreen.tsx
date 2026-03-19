@@ -184,11 +184,11 @@ export default function PaintingScreen() {
 
         {/* Canvas area */}
         <View style={styles.canvasOuter} onLayout={handleCanvasLayout}>
-          {canvasSize && page.imageSource && (
+          {canvasSize && (page.imageSource || page.imageUrl) && (
             <View style={styles.canvasCenter}>
               <CanvasWebView
                 ref={canvasRef}
-                imageSource={page.imageSource}
+                imageSource={page.imageUrl ?? page.imageSource!}
                 width={canvasSize.w}
                 height={canvasSize.h}
                 tool={selectedTool}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
@@ -7,6 +7,7 @@ import PremiumModal from '../../core/components/PremiumModal'
 import { useCredits } from '../../core/context/CreditsContext'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { coloringPages, ColoringPage, Difficulty } from '../../core/data/coloringPages'
+import { useImages } from '../../core/api/useImages'
 import ColoringPageRenderer from '../painting/pages'
 
 const DIFFICULTY_COLORS: Record<Difficulty, string> = {
@@ -21,6 +22,20 @@ export default function ExploreScreen() {
   const { t } = useLanguage()
   const [premiumModal, setPremiumModal] = useState(false)
 
+  const { pages: remotePages } = useImages()
+
+  const allPages = useMemo(() => {
+    const seen = new Set<string>()
+    const merged: ColoringPage[] = []
+    for (const p of [...remotePages, ...coloringPages]) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id)
+        merged.push(p)
+      }
+    }
+    return merged
+  }, [remotePages])
+
   const handleSelectPage = (page: ColoringPage) => {
     if (page.isPremiumResource && !isPremium) {
       setPremiumModal(true)
@@ -33,9 +48,9 @@ export default function ExploreScreen() {
     navigation.getParent()?.navigate('Painting', { pageId: page.id })
   }
 
-  const easyPages = coloringPages.filter((p) => p.difficulty === 'easy')
-  const mediumPages = coloringPages.filter((p) => p.difficulty === 'medium')
-  const hardPages = coloringPages.filter((p) => p.difficulty === 'hard')
+  const easyPages = allPages.filter((p) => p.difficulty === 'easy')
+  const mediumPages = allPages.filter((p) => p.difficulty === 'medium')
+  const hardPages = allPages.filter((p) => p.difficulty === 'hard')
 
   const SECTIONS = [
     { id: 'easy', name: t('easy'), color: DIFFICULTY_COLORS.easy, pages: easyPages },
@@ -66,7 +81,7 @@ export default function ExploreScreen() {
               renderItem={({ item: page }) => (
                 <TouchableOpacity style={styles.pageThumb} onPress={() => handleSelectPage(page)} activeOpacity={0.7}>
                   <View pointerEvents="none">
-                    <ColoringPageRenderer pageId={page.id} width={100} height={110} />
+                    <ColoringPageRenderer pageId={page.id} width={100} height={110} thumbnailUrl={page.thumbnailUrl} />
                   </View>
                   <Text style={styles.thumbName} numberOfLines={1}>{t(page.nameKey) || page.name}</Text>
                 </TouchableOpacity>

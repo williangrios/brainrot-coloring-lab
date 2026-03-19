@@ -1,6 +1,7 @@
-import { BITMAP_PAGES, BitmapColoringPage } from './bitmapPages'
+import { BUNDLED_PAGES, BundledPage, Difficulty } from './bundledPages'
+import { getRemotePageById } from './pagesStore'
 
-export type Difficulty = 'easy' | 'medium' | 'hard'
+export type { Difficulty }
 
 export interface ColoringPage {
   id: string
@@ -10,9 +11,12 @@ export interface ColoringPage {
   isPremiumResource: boolean
   isBitmap: boolean
   imageSource?: number
+  thumbnailSource?: number
+  imageUrl?: string
+  thumbnailUrl?: string
 }
 
-function bitmapToColoringPage(bp: BitmapColoringPage): ColoringPage {
+function bundledToColoringPage(bp: BundledPage): ColoringPage {
   return {
     id: bp.id,
     name: bp.name,
@@ -21,13 +25,14 @@ function bitmapToColoringPage(bp: BitmapColoringPage): ColoringPage {
     isPremiumResource: bp.isPremium,
     isBitmap: true,
     imageSource: bp.imageSource,
+    thumbnailSource: bp.thumbnailSource,
   }
 }
 
-export const coloringPages: ColoringPage[] = BITMAP_PAGES.map(bitmapToColoringPage)
+export const coloringPages: ColoringPage[] = BUNDLED_PAGES.map(bundledToColoringPage)
 
 export function getPageById(id: string): ColoringPage | undefined {
-  return coloringPages.find((p) => p.id === id)
+  return coloringPages.find((p) => p.id === id) ?? getRemotePageById(id)
 }
 
 export function getPagesByDifficulty(difficulty: Difficulty): ColoringPage[] {

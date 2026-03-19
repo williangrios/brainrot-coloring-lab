@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Heart } from 'lucide-react-native'
@@ -8,6 +8,7 @@ import PremiumModal from '../../core/components/PremiumModal'
 import { useCredits } from '../../core/context/CreditsContext'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { coloringPages, ColoringPage, Difficulty } from '../../core/data/coloringPages'
+import { useImages } from '../../core/api/useImages'
 import { getFavorites, addFavorite, removeFavorite } from '../../core/storage/favoritesStorage'
 import ColoringPageRenderer from '../painting/pages'
 
@@ -36,17 +37,32 @@ export default function BrowseScreen() {
   const [favorites, setFavorites] = useState<string[]>([])
   const [premiumModal, setPremiumModal] = useState(false)
 
+  const { pages: remotePages } = useImages()
+
   useFocusEffect(
     useCallback(() => {
       getFavorites().then(setFavorites)
     }, [])
   )
 
+  // Merge bundled + remote, remote first, avoiding duplicates by id
+  const allPages = useMemo(() => {
+    const seen = new Set<string>()
+    const merged: ColoringPage[] = []
+    for (const p of [...remotePages, ...coloringPages]) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id)
+        merged.push(p)
+      }
+    }
+    return merged
+  }, [remotePages])
+
   const filteredPages = filter === 'favorites'
-    ? coloringPages.filter((p) => favorites.includes(p.id))
+    ? allPages.filter((p) => favorites.includes(p.id))
     : filter === 'all'
-      ? coloringPages
-      : coloringPages.filter((p) => p.difficulty === filter)
+      ? allPages
+      : allPages.filter((p) => p.difficulty === filter)
 
   const handleToggleFavorite = async (pageId: string) => {
     if (favorites.includes(pageId)) {
@@ -83,7 +99,7 @@ export default function BrowseScreen() {
       >
         <View style={styles.cardImageContainer}>
           <View pointerEvents="none">
-            <ColoringPageRenderer pageId={item.id} width={CARD_WIDTH - 16} height={CARD_WIDTH * 1.1 - 16} />
+            <ColoringPageRenderer pageId={item.id} width={CARD_WIDTH - 16} height={CARD_WIDTH * 1.1 - 16} thumbnailUrl={item.thumbnailUrl} />
           </View>
           {locked && (
             <View style={styles.lockOverlay}>
@@ -105,7 +121,7 @@ export default function BrowseScreen() {
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.cardName} numberOfLines={1}>
-            {t(item.nameKey) || item.name}
+            {item.name || t(item.nameKey)}
           </Text>
           <View style={[styles.diffBadge, { backgroundColor: diffColor + '22' }]}>
             <Text style={[styles.diffText, { color: diffColor }]}>

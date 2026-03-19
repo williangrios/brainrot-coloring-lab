@@ -21,33 +21,40 @@ const STORE_URL = Platform.select({
 // TODO: endpoint para receber feedback negativo
 const FEEDBACK_URL = 'https://PLACEHOLDER_API_URL/api/v1/feedback'
 
+function StarRow({ rating, onRate }: { rating: number; onRate: (n: number) => void }) {
+  return (
+    <View style={styles.starRow}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <TouchableOpacity key={n} onPress={() => onRate(n)} activeOpacity={0.7}>
+          <Text style={[styles.star, n <= rating && styles.starActive]}>★</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  )
+}
+
 export default function RatingScreen() {
   const navigation = useNavigation<Nav>()
   const { t } = useLanguage()
   const { completeRating } = useAppGate()
-  const [step, setStep] = useState<'ask' | 'rate' | 'feedback'>('ask')
+  const [step, setStep] = useState<'ask' | 'feedback'>('ask')
+  const [rating, setRating] = useState(0)
   const [feedbackText, setFeedbackText] = useState('')
   const [sent, setSent] = useState(false)
 
-  const handleYes = () => {
-    setStep('rate')
-  }
-
-  const handleNo = () => {
-    setStep('feedback')
-  }
-
-  const handleGoToStore = async () => {
-    completeRating()
-    try {
-      if (STORE_URL) await Linking.openURL(STORE_URL)
-    } catch {}
-    navigation.goBack()
-  }
-
-  const handleSkipRate = () => {
-    completeRating()
-    navigation.goBack()
+  const handleRate = async (stars: number) => {
+    setRating(stars)
+    if (stars >= 4) {
+      // High rating → send to store
+      completeRating()
+      try {
+        if (STORE_URL) await Linking.openURL(STORE_URL)
+      } catch {}
+      navigation.goBack()
+    } else {
+      // Low rating → feedback form
+      setStep('feedback')
+    }
   }
 
   const handleSendFeedback = async () => {
@@ -55,33 +62,16 @@ export default function RatingScreen() {
     // await fetch(FEEDBACK_URL, {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ feedback: feedbackText }),
+    //   body: JSON.stringify({ rating, feedback: feedbackText }),
     // })
     setSent(true)
     completeRating()
     setTimeout(() => navigation.goBack(), 1500)
   }
 
-  const handleSkipFeedback = () => {
+  const handleSkip = () => {
     completeRating()
     navigation.goBack()
-  }
-
-  if (step === 'rate') {
-    return (
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.closeBtn} onPress={handleSkipRate}>
-          <Text style={styles.closeBtnText}>✕</Text>
-        </TouchableOpacity>
-        <Text style={styles.emoji}>⭐</Text>
-        <Text style={styles.title}>{t('rateUsTitle')}</Text>
-        <Text style={styles.subtitle}>{t('rateUsSubtitle')}</Text>
-
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleGoToStore}>
-          <Text style={styles.primaryBtnText}>{t('rateNow')}</Text>
-        </TouchableOpacity>
-      </View>
-    )
   }
 
   if (step === 'feedback') {
@@ -91,6 +81,9 @@ export default function RatingScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity style={styles.closeBtn} onPress={handleSkip}>
+            <Text style={styles.closeBtnText}>✕</Text>
+          </TouchableOpacity>
           <Text style={styles.emoji}>💬</Text>
           <Text style={styles.title}>{t('feedbackTitle')}</Text>
           <Text style={styles.subtitle}>{t('feedbackSubtitle')}</Text>
@@ -118,7 +111,7 @@ export default function RatingScreen() {
               >
                 <Text style={styles.primaryBtnText}>{t('sendFeedback')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={handleSkipFeedback}>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={handleSkip}>
                 <Text style={styles.secondaryBtnText}>{t('skip')}</Text>
               </TouchableOpacity>
             </>
@@ -128,19 +121,17 @@ export default function RatingScreen() {
     )
   }
 
-  // step === 'ask'
+  // step === 'ask' — star selector
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.closeBtn} onPress={handleSkip}>
+        <Text style={styles.closeBtnText}>✕</Text>
+      </TouchableOpacity>
       <Text style={styles.emoji}>🎨</Text>
       <Text style={styles.title}>{t('enjoyingApp')}</Text>
       <Text style={styles.subtitle}>{t('enjoyingAppSubtitle')}</Text>
 
-      <TouchableOpacity style={styles.primaryBtn} onPress={handleYes}>
-        <Text style={styles.primaryBtnText}>{t('yes')}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.negativeBtn} onPress={handleNo}>
-        <Text style={styles.negativeBtnText}>{t('notReally')}</Text>
-      </TouchableOpacity>
+      <StarRow rating={rating} onRate={handleRate} />
     </View>
   )
 }
@@ -193,6 +184,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 32,
   },
+  starRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  star: {
+    fontSize: 44,
+    color: '#333',
+  },
+  starActive: {
+    color: '#FFD600',
+  },
   primaryBtn: {
     backgroundColor: '#00ff88',
     paddingVertical: 16,
@@ -215,19 +218,6 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     color: '#666',
     fontSize: 15,
-  },
-  negativeBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  negativeBtnText: {
-    color: '#aaa',
-    fontSize: 15,
-    fontWeight: '600',
   },
   feedbackInput: {
     backgroundColor: '#1a1a1a',

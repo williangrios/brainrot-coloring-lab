@@ -1,7 +1,20 @@
 import { Asset } from 'expo-asset'
 import { File } from 'expo-file-system'
 
-export async function loadImageAsBase64(source: number): Promise<string> {
+export async function loadImageAsBase64(source: number | string): Promise<string> {
+  // Remote URL — fetch and convert to base64
+  if (typeof source === 'string') {
+    const res = await fetch(source)
+    const blob = await res.blob()
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  // Bundled asset (number)
   const asset = Asset.fromModule(source)
   await asset.downloadAsync()
 

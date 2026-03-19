@@ -8,13 +8,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { RootStackParamList } from '../../core/types/navigation'
 import { useLanguage } from '../../i18n/LanguageContext'
+import { api, DEFAULT_TENANT } from '../../core/api/apiClient'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-// TODO: substituir pela URL real do backend
-const SUBMIT_EMAIL_URL = 'https://PLACEHOLDER_API_URL/api/v1/subscribe'
 
 export default function EmailScreen() {
   const navigation = useNavigation<Nav>()
@@ -38,23 +36,15 @@ export default function EmailScreen() {
     setLoading(true)
 
     try {
-      // Fake request — será substituída pelo endpoint real
-      // await fetch(SUBMIT_EMAIL_URL, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email: trimmed }),
-      // })
-
-      // Simula latência
-      await new Promise((r) => setTimeout(r, 400))
-
-      await AsyncStorage.setItem('@brainrot_onboarding_done', 'true')
-      navigation.replace('Subscription')
+      await api.post('/api/business/apps/email/new', {
+        body: { email: trimmed, tenant: DEFAULT_TENANT },
+      })
     } catch {
-      // Se falhar, segue mesmo assim (não bloquear o usuário por erro de rede)
-      navigation.replace('Subscription')
+      // Não bloquear o usuário por erro de rede
     } finally {
       setLoading(false)
+      await AsyncStorage.setItem('@brainrot_onboarding_done', 'true')
+      navigation.replace('Subscription')
     }
   }
 
