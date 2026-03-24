@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import Header from '../../core/components/Header'
 import { useLanguage } from '../../i18n/LanguageContext'
-import { useCredits } from '../../core/context/CreditsContext'
 import { getDrawings, deleteDrawing, Drawing } from '../../core/storage/drawingStorage'
 
 function DrawingPreview({ drawing, size = 140 }: { drawing: Drawing; size?: number }) {
@@ -29,7 +28,6 @@ function DrawingPreview({ drawing, size = 140 }: { drawing: Drawing; size?: numb
 export default function LibraryScreen() {
   const [drawings, setDrawings] = useState<Drawing[]>([])
   const { t } = useLanguage()
-  const { earnFromShare, shareCount } = useCredits()
 
   const loadDrawings = useCallback(async () => {
     const d = await getDrawings()
@@ -48,11 +46,7 @@ export default function LibraryScreen() {
   const handleShare = async (drawing: Drawing) => {
     try {
       const message = t('shareMessage').replace('{name}', drawing.name)
-      const result = await Share.share({ message })
-      if (result.action === Share.sharedAction && shareCount < 3) {
-        const earned = await earnFromShare()
-        if (earned) Alert.alert(t('creditEarned'), t('earnedCreditMsg'))
-      }
+      await Share.share({ message })
     } catch { /* cancelled */ }
   }
 
@@ -61,7 +55,7 @@ export default function LibraryScreen() {
       <ScreenWrapper noBottom>
         <Header title={t('library')} />
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🎨</Text>
+          <Text style={styles.emptyIcon}>{'\uD83C\uDFA8'}</Text>
           <Text style={styles.emptyTitle}>{t('noDrawings')}</Text>
           <Text style={styles.emptyText}>{t('createFirst')}</Text>
         </View>
@@ -88,7 +82,7 @@ export default function LibraryScreen() {
                   <Text style={styles.cardBtnText}>{t('share')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(item)} style={styles.cardBtnDanger}>
-                  <Text style={styles.cardBtnDangerText}>✕</Text>
+                  <Text style={styles.cardBtnDangerText}>{'\u2715'}</Text>
                 </TouchableOpacity>
               </View>
             </View>

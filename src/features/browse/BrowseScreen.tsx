@@ -31,7 +31,7 @@ const FILTERS: { key: 'all' | Difficulty | 'favorites'; labelKey: string }[] = [
 
 export default function BrowseScreen() {
   const navigation = useNavigation<any>()
-  const { isPremium, spend, credits } = useCredits()
+  const { isPremium } = useCredits()
   const { t } = useLanguage()
   const [filter, setFilter] = useState<'all' | Difficulty | 'favorites'>('all')
   const [favorites, setFavorites] = useState<string[]>([])
@@ -45,7 +45,6 @@ export default function BrowseScreen() {
     }, [])
   )
 
-  // Merge bundled + remote, remote first, avoiding duplicates by id
   const allPages = useMemo(() => {
     const seen = new Set<string>()
     const merged: ColoringPage[] = []
@@ -79,10 +78,6 @@ export default function BrowseScreen() {
       setPremiumModal(true)
       return
     }
-    if (!isPremium && credits <= 0) {
-      setPremiumModal(true)
-      return
-    }
     navigation.getParent()?.navigate('Painting', { pageId: page.id })
   }
 
@@ -103,7 +98,7 @@ export default function BrowseScreen() {
           </View>
           {locked && (
             <View style={styles.lockOverlay}>
-              <Text style={styles.lockIcon}>🔒</Text>
+              <Text style={styles.lockIcon}>{'\uD83D\uDD12'}</Text>
             </View>
           )}
           <TouchableOpacity
@@ -137,7 +132,6 @@ export default function BrowseScreen() {
     <ScreenWrapper noBottom>
       <Header title={t('browse')} />
 
-      {/* Filter tabs */}
       <View style={styles.filters}>
         {FILTERS.map((f) => (
           <TouchableOpacity
@@ -154,7 +148,7 @@ export default function BrowseScreen() {
 
       {filteredPages.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>{filter === 'favorites' ? '❤️' : '🎨'}</Text>
+          <Text style={styles.emptyIcon}>{filter === 'favorites' ? '\u2764\uFE0F' : '\uD83C\uDFA8'}</Text>
           <Text style={styles.emptyText}>
             {filter === 'favorites' ? t('noFavorites') : t('noPages')}
           </Text>
@@ -215,10 +209,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cardImage: {
-    width: CARD_WIDTH - 16,
-    height: CARD_WIDTH * 1.1 - 16,
   },
   lockOverlay: {
     ...StyleSheet.absoluteFillObject,

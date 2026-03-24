@@ -10,7 +10,6 @@ import { useLanguage } from '../../i18n/LanguageContext'
 import { getDrawings, Drawing } from '../../core/storage/drawingStorage'
 import { coloringPages, ColoringPage, Difficulty } from '../../core/data/coloringPages'
 import { getFavorites, addFavorite, removeFavorite } from '../../core/storage/favoritesStorage'
-import { getPageById } from '../../core/data/coloringPages'
 import { useImages } from '../../core/api/useImages'
 import ColoringPageRenderer from '../../features/painting/pages'
 
@@ -24,7 +23,7 @@ const DIFFICULTY_COLORS: Record<Difficulty, string> = {
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>()
-  const { credits, isPremium } = useCredits()
+  const { isPremium } = useCredits()
   const { t } = useLanguage()
   const [recentDrawings, setRecentDrawings] = useState<Drawing[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
@@ -41,10 +40,6 @@ export default function HomeScreen() {
 
   const handleSelectPage = (page: ColoringPage) => {
     if (page.isPremiumResource && !isPremium) {
-      setPremiumModal(true)
-      return
-    }
-    if (!isPremium && credits <= 0) {
       setPremiumModal(true)
       return
     }
@@ -140,7 +135,7 @@ export default function HomeScreen() {
                           <ColoringPageRenderer pageId={item.id} width={110} height={120} thumbnailUrl={item.thumbnailUrl} />
                         </View>
                         {item.isPremiumResource && !isPremium && (
-                          <View style={styles.lockBadge}><Text style={styles.lockText}>🔒</Text></View>
+                          <View style={styles.lockBadge}><Text style={styles.lockText}>{'\uD83D\uDD12'}</Text></View>
                         )}
                       </View>
                       <Text style={styles.pageName} numberOfLines={1}>{item.name || t(item.nameKey)}</Text>
@@ -175,23 +170,6 @@ export default function HomeScreen() {
                 />
               </>
             )}
-
-            {/* Credits info */}
-            {!isPremium && (
-              <View style={styles.creditsInfo}>
-                <Text style={styles.creditsInfoTitle}>{t('freePlan')}</Text>
-                <Text style={styles.creditsInfoText}>
-                  {t('creditsRemaining').replace('{count}', String(credits))}{'\n'}
-                  {t('shareToEarn')}
-                </Text>
-                <TouchableOpacity
-                  style={styles.upgradeSmall}
-                  onPress={() => setPremiumModal(true)}
-                >
-                  <Text style={styles.upgradeSmallText}>{t('upgradeToPremium')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         }
       />
@@ -215,7 +193,6 @@ const styles = StyleSheet.create({
   hScroll: { gap: 12, paddingBottom: 20 },
   pageCard: { width: 130, backgroundColor: '#1a1a1a', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#222' },
   pageImageWrap: { height: 140, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  pageImage: { width: 110, height: 120 },
   pageInfo: { flexDirection: 'row', alignItems: 'center', padding: 8, gap: 6 },
   pageName: { color: '#ccc', fontSize: 11, fontWeight: '600', flex: 1 },
   diffDot: { width: 8, height: 8, borderRadius: 4 },
@@ -244,11 +221,5 @@ const styles = StyleSheet.create({
   lockText: { fontSize: 12 },
   recentCard: { width: 110, backgroundColor: '#1a1a1a', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#222' },
   recentPreview: { height: 100, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  recentImage: { width: 90, height: 80 },
   recentName: { color: '#ccc', fontSize: 11, fontWeight: '600', padding: 6, textAlign: 'center' },
-  creditsInfo: { backgroundColor: '#1a1a0a', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#333300', marginTop: 8 },
-  creditsInfoTitle: { color: '#FFD600', fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  creditsInfoText: { color: '#999', fontSize: 13, lineHeight: 20, marginBottom: 12 },
-  upgradeSmall: { backgroundColor: '#00ff88', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  upgradeSmallText: { color: '#111', fontSize: 14, fontWeight: '700' },
 })

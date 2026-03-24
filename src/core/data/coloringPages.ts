@@ -1,7 +1,6 @@
-import { BUNDLED_PAGES, BundledPage, Difficulty } from './bundledPages'
-import { getRemotePageById } from './pagesStore'
+import { getRemotePages, getRemotePageById } from './pagesStore'
 
-export type { Difficulty }
+export type Difficulty = 'easy' | 'medium' | 'hard'
 
 export interface ColoringPage {
   id: string
@@ -10,35 +9,25 @@ export interface ColoringPage {
   difficulty: Difficulty
   isPremiumResource: boolean
   isBitmap: boolean
-  imageSource?: number
-  thumbnailSource?: number
   imageUrl?: string
   thumbnailUrl?: string
 }
 
-function bundledToColoringPage(bp: BundledPage): ColoringPage {
-  return {
-    id: bp.id,
-    name: bp.name,
-    nameKey: bp.id,
-    difficulty: bp.difficulty,
-    isPremiumResource: bp.isPremium,
-    isBitmap: true,
-    imageSource: bp.imageSource,
-    thumbnailSource: bp.thumbnailSource,
-  }
-}
-
-export const coloringPages: ColoringPage[] = BUNDLED_PAGES.map(bundledToColoringPage)
+// Todas as páginas agora vêm do backend remoto (com cache local)
+export const coloringPages: ColoringPage[] = []
 
 export function getPageById(id: string): ColoringPage | undefined {
-  return coloringPages.find((p) => p.id === id) ?? getRemotePageById(id)
+  return getRemotePageById(id)
+}
+
+export function getAllPages(): ColoringPage[] {
+  return getRemotePages()
 }
 
 export function getPagesByDifficulty(difficulty: Difficulty): ColoringPage[] {
-  return coloringPages.filter((p) => p.difficulty === difficulty)
+  return getRemotePages().filter((p) => p.difficulty === difficulty)
 }
 
 export function getFreePages(): ColoringPage[] {
-  return coloringPages.filter((p) => !p.isPremiumResource)
+  return getRemotePages().filter((p) => !p.isPremiumResource)
 }

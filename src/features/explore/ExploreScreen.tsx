@@ -18,7 +18,7 @@ const DIFFICULTY_COLORS: Record<Difficulty, string> = {
 
 export default function ExploreScreen() {
   const navigation = useNavigation<any>()
-  const { credits, isPremium } = useCredits()
+  const { isPremium } = useCredits()
   const { t } = useLanguage()
   const [premiumModal, setPremiumModal] = useState(false)
 
@@ -38,10 +38,6 @@ export default function ExploreScreen() {
 
   const handleSelectPage = (page: ColoringPage) => {
     if (page.isPremiumResource && !isPremium) {
-      setPremiumModal(true)
-      return
-    }
-    if (!isPremium && credits <= 0) {
       setPremiumModal(true)
       return
     }
@@ -94,7 +90,7 @@ export default function ExploreScreen() {
             <Text style={styles.statsTitle}>{t('collectionStats')}</Text>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
-                <Text style={styles.statNumber}>{coloringPages.length}</Text>
+                <Text style={styles.statNumber}>{allPages.length}</Text>
                 <Text style={styles.statLabel}>{t('browseAll')}</Text>
               </View>
               <View style={styles.stat}>
@@ -131,7 +127,6 @@ const styles = StyleSheet.create({
   sectionCount: { color: '#666', fontSize: 14 },
   pagesRow: { gap: 10 },
   pageThumb: { width: 100, backgroundColor: '#fff', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#333' },
-  thumbImage: { width: 100, height: 110 },
   thumbName: { color: '#333', fontSize: 10, fontWeight: '600', padding: 4, textAlign: 'center' },
   statsCard: { backgroundColor: '#1a1a1a', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#222', marginTop: 8 },
   statsTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 16, textAlign: 'center' },

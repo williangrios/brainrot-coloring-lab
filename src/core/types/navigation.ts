@@ -4,10 +4,7 @@ export type RootStackParamList = {
   Email: undefined
   Subscription: undefined
   MainTabs: undefined
-  Rating: {
-    onRate?: (positive: boolean) => void
-    onDismiss?: () => void
-  } | undefined
+  Rating: undefined
   Painting: { pageId: string }
   Finalization: {
     pageId: string

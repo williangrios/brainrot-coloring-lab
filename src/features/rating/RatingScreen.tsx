@@ -1,8 +1,5 @@
 import React, { useState } from 'react'
-import {
-  View, Text, TouchableOpacity, TextInput, StyleSheet,
-  Linking, Platform, KeyboardAvoidingView, ScrollView,
-} from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../../core/types/navigation'
@@ -11,22 +8,19 @@ import { useAppGate } from '../../core/context/AppGateContext'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
-// TODO: substituir pelas URLs reais das lojas
+// TODO: substituir pelo ID real do app na loja
 const STORE_URL = Platform.select({
   ios: 'https://apps.apple.com/app/idXXXXXXXXXX?action=write-review',
-  android: 'https://play.google.com/store/apps/details?id=com.brainrot.coloring',
+  android: 'https://play.google.com/store/apps/details?id=br.com.wrsolucoesdigitais.brainrotcoloring',
   default: '',
 })
-
-// TODO: endpoint para receber feedback negativo
-const FEEDBACK_URL = 'https://PLACEHOLDER_API_URL/api/v1/feedback'
 
 function StarRow({ rating, onRate }: { rating: number; onRate: (n: number) => void }) {
   return (
     <View style={styles.starRow}>
       {[1, 2, 3, 4, 5].map((n) => (
         <TouchableOpacity key={n} onPress={() => onRate(n)} activeOpacity={0.7}>
-          <Text style={[styles.star, n <= rating && styles.starActive]}>★</Text>
+          <Text style={[styles.star, n <= rating && styles.starActive]}>{'\u2605'}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -37,97 +31,36 @@ export default function RatingScreen() {
   const navigation = useNavigation<Nav>()
   const { t } = useLanguage()
   const { completeRating } = useAppGate()
-  const [step, setStep] = useState<'ask' | 'feedback'>('ask')
   const [rating, setRating] = useState(0)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [sent, setSent] = useState(false)
 
   const handleRate = async (stars: number) => {
     setRating(stars)
+
     if (stars >= 4) {
-      // High rating → send to store
+      // Avaliação positiva → abre loja para review
       completeRating()
       try {
         if (STORE_URL) await Linking.openURL(STORE_URL)
       } catch {}
       navigation.goBack()
     } else {
-      // Low rating → feedback form
-      setStep('feedback')
+      // Avaliação ≤3 → fecha e desbloqueia anúncios
+      completeRating()
+      navigation.goBack()
     }
   }
 
-  const handleSendFeedback = async () => {
-    // Fake request — substituir pelo endpoint real
-    // await fetch(FEEDBACK_URL, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ rating, feedback: feedbackText }),
-    // })
-    setSent(true)
-    completeRating()
-    setTimeout(() => navigation.goBack(), 1500)
-  }
-
-  const handleSkip = () => {
-    completeRating()
+  const handleDismiss = () => {
+    // Fechar SEM marcar como avaliado → vai perguntar novamente no próximo desenho
     navigation.goBack()
   }
 
-  if (step === 'feedback') {
-    return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity style={styles.closeBtn} onPress={handleSkip}>
-            <Text style={styles.closeBtnText}>✕</Text>
-          </TouchableOpacity>
-          <Text style={styles.emoji}>💬</Text>
-          <Text style={styles.title}>{t('feedbackTitle')}</Text>
-          <Text style={styles.subtitle}>{t('feedbackSubtitle')}</Text>
-
-          <TextInput
-            style={styles.feedbackInput}
-            placeholder={t('feedbackPlaceholder')}
-            placeholderTextColor="#555"
-            value={feedbackText}
-            onChangeText={setFeedbackText}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            maxLength={500}
-          />
-
-          {sent ? (
-            <Text style={styles.thankYou}>{t('feedbackThanks')}</Text>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[styles.primaryBtn, !feedbackText.trim() && styles.primaryBtnDisabled]}
-                onPress={handleSendFeedback}
-                disabled={!feedbackText.trim()}
-              >
-                <Text style={styles.primaryBtnText}>{t('sendFeedback')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={handleSkip}>
-                <Text style={styles.secondaryBtnText}>{t('skip')}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    )
-  }
-
-  // step === 'ask' — star selector
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.closeBtn} onPress={handleSkip}>
-        <Text style={styles.closeBtnText}>✕</Text>
+      <TouchableOpacity style={styles.closeBtn} onPress={handleDismiss}>
+        <Text style={styles.closeBtnText}>{'\u2715'}</Text>
       </TouchableOpacity>
-      <Text style={styles.emoji}>🎨</Text>
+      <Text style={styles.emoji}>{'\uD83C\uDFA8'}</Text>
       <Text style={styles.title}>{t('enjoyingApp')}</Text>
       <Text style={styles.subtitle}>{t('enjoyingAppSubtitle')}</Text>
 
@@ -160,12 +93,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
   emoji: {
     fontSize: 56,
     marginBottom: 16,
@@ -195,47 +122,5 @@ const styles = StyleSheet.create({
   },
   starActive: {
     color: '#FFD600',
-  },
-  primaryBtn: {
-    backgroundColor: '#00ff88',
-    paddingVertical: 16,
-    borderRadius: 30,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  primaryBtnDisabled: {
-    opacity: 0.4,
-  },
-  primaryBtnText: {
-    color: '#111',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  secondaryBtn: {
-    paddingVertical: 12,
-  },
-  secondaryBtnText: {
-    color: '#666',
-    fontSize: 15,
-  },
-  feedbackInput: {
-    backgroundColor: '#1a1a1a',
-    color: '#fff',
-    fontSize: 15,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#333',
-    width: '100%',
-    minHeight: 120,
-    marginBottom: 20,
-  },
-  thankYou: {
-    color: '#00ff88',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
   },
 })

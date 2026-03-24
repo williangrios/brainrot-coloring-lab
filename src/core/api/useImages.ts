@@ -1,7 +1,8 @@
-import { useMemo, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useApi } from './useApi'
 import { DEFAULT_TENANT } from './apiClient'
 import { setRemotePages } from '../data/pagesStore'
+import { cachePageImages, savePagesToStorage, loadPagesFromStorage } from '../cache/imageCache'
 import type { ColoringPage, Difficulty } from '../data/coloringPages'
 
 interface ApiImage {
@@ -34,6 +35,20 @@ function apiImageToColoringPage(img: ApiImage): ColoringPage {
 }
 
 export function useImages(limit = 100, skip = 0) {
+  const [cachedPages, setCachedPages] = useState<ColoringPage[]>([])
+  const [caching, setCaching] = useState(false)
+
+  // Carregar páginas do cache local ao iniciar (funciona offline)
+  useEffect(() => {
+    loadPagesFromStorage().then((stored) => {
+      if (stored.length > 0) {
+        setCachedPages(stored)
+        setRemotePages(stored)
+      }
+    })
+  }, [])
+
+  // Buscar do backend
   const { data, loading, error, refetch } = useApi<GetImagesResponse>(
     '/api/business/apps/images/getimages',
     {
@@ -45,14 +60,28 @@ export function useImages(limit = 100, skip = 0) {
     }
   )
 
-  const pages: ColoringPage[] = useMemo(() => {
+  const freshPages: ColoringPage[] = useMemo(() => {
     if (!data?.images) return []
     return data.images.map(apiImageToColoringPage)
   }, [data])
 
+  // Quando receber dados frescos do backend: atualizar store, persistir e cachear imagens
   useEffect(() => {
-    setRemotePages(pages)
-  }, [pages])
+    if (freshPages.length === 0) return
 
-  return { pages, loading, error, refetch }
+    setRemotePages(freshPages)
+    setCachedPages(freshPages)
+
+    // Persistir lista e baixar imagens em background
+    setCaching(true)
+    Promise.all([
+      savePagesToStorage(freshPages),
+      cachePageImages(freshPages),
+    ]).finally(() => setCaching(false))
+  }, [freshPages])
+
+  // Usar dados frescos se disponíveis, senão cache local
+  const pages = freshPages.length > 0 ? freshPages : cachedPages
+
+  return { pages, loading, error, caching, refetch }
 }

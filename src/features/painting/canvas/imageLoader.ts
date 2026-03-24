@@ -1,10 +1,24 @@
-import { Asset } from 'expo-asset'
-import { File } from 'expo-file-system'
+import { readAsStringAsync } from 'expo-file-system/legacy'
+import { getCachedImageUri } from '../../../core/cache/imageCache'
 
 export async function loadImageAsBase64(source: number | string): Promise<string> {
-  // Remote URL — fetch and convert to base64
+  // String URL — pode ser remota ou local (cache)
   if (typeof source === 'string') {
-    const res = await fetch(source)
+    // Pegar do cache local (ou baixar se necessário)
+    const localUri = await getCachedImageUri(source)
+
+    // Se é um arquivo local (file://), ler como base64
+    if (localUri.startsWith('file://') || localUri.startsWith('/')) {
+      const base64 = await readAsStringAsync(localUri, {
+        encoding: 'base64' as any,
+      })
+      const ext = localUri.match(/\.(png|jpg|jpeg|webp|gif)/i)?.[1] ?? 'png'
+      const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`
+      return `data:${mime};base64,${base64}`
+    }
+
+    // Fallback: fetch da URL remota e converter
+    const res = await fetch(localUri)
     const blob = await res.blob()
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
@@ -14,19 +28,13 @@ export async function loadImageAsBase64(source: number | string): Promise<string
     })
   }
 
-  // Bundled asset (number)
+  // Number source (bundled asset) — fallback para compatibilidade
+  const { Asset } = require('expo-asset')
   const asset = Asset.fromModule(source)
   await asset.downloadAsync()
 
-  const file = new File(asset.localUri!)
-  const buffer = await file.arrayBuffer()
-  const bytes = new Uint8Array(buffer)
-
-  // Convert Uint8Array to base64
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  const base64 = btoa(binary)
+  const base64 = await readAsStringAsync(asset.localUri!, {
+    encoding: 'base64' as any,
+  })
   return `data:image/png;base64,${base64}`
 }

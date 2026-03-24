@@ -1,13 +1,7 @@
-import React from 'react'
-import { Image } from 'react-native'
-import { BUNDLED_PAGES } from '../../../core/data/bundledPages'
+import React, { useState, useEffect } from 'react'
+import { Image, View, ActivityIndicator } from 'react-native'
 import { getPageById } from '../../../core/data/coloringPages'
-
-// Build bitmap lookup
-const BITMAP_MAP: Record<string, number> = {}
-for (const bp of BUNDLED_PAGES) {
-  BITMAP_MAP[bp.id] = bp.imageSource
-}
+import { getCachedImageUri } from '../../../core/cache/imageCache'
 
 interface ColoringPageRendererProps {
   pageId: string
@@ -19,43 +13,42 @@ interface ColoringPageRendererProps {
 const ColoringPageRenderer: React.FC<ColoringPageRendererProps> = ({
   pageId, width, height, thumbnailUrl,
 }) => {
-  // Explicit thumbnailUrl prop takes priority
-  if (thumbnailUrl) {
+  const [uri, setUri] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function resolve() {
+      // Prioridade: thumbnailUrl prop > page.thumbnailUrl > page.imageUrl
+      const url = thumbnailUrl
+        || getPageById(pageId)?.thumbnailUrl
+        || getPageById(pageId)?.imageUrl
+
+      if (!url) return
+
+      const cached = await getCachedImageUri(url)
+      if (!cancelled) setUri(cached)
+    }
+
+    resolve()
+    return () => { cancelled = true }
+  }, [pageId, thumbnailUrl])
+
+  if (!uri) {
     return (
-      <Image
-        source={{ uri: thumbnailUrl }}
-        style={{ width, height }}
-        resizeMode="contain"
-      />
+      <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color="#666" />
+      </View>
     )
   }
 
-  // Try bundled image
-  const source = BITMAP_MAP[pageId]
-  if (source) {
-    return (
-      <Image
-        source={source}
-        style={{ width, height }}
-        resizeMode="contain"
-      />
-    )
-  }
-
-  // Fallback: look up remote page data for thumbnailUrl or imageUrl
-  const page = getPageById(pageId)
-  const remoteUrl = page?.thumbnailUrl || page?.imageUrl
-  if (remoteUrl) {
-    return (
-      <Image
-        source={{ uri: remoteUrl }}
-        style={{ width, height }}
-        resizeMode="contain"
-      />
-    )
-  }
-
-  return null
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width, height }}
+      resizeMode="contain"
+    />
+  )
 }
 
 export default React.memo(ColoringPageRenderer)

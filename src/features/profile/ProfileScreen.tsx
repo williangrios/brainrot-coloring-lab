@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Alert,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
@@ -15,11 +16,20 @@ import AppLogo from '../../core/components/AppLogo'
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>()
-  const { credits, shareCount, isPremium, togglePremium } = useCredits()
+  const { isPremium, restore } = useCredits()
   const { t, language } = useLanguage()
 
   const handleChangeLanguage = () => {
     navigation.getParent()?.navigate('LanguageSelect')
+  }
+
+  const handleRestore = async () => {
+    const success = await restore()
+    if (success) {
+      Alert.alert(t('restored'), t('premiumRestored'))
+    } else {
+      Alert.alert(t('noSubscription'), t('noSubscriptionMsg'))
+    }
   }
 
   return (
@@ -37,33 +47,18 @@ export default function ProfileScreen() {
               <Text style={styles.freeBadgeText}>{t('free')}</Text>
             </View>
           )}
-          <TouchableOpacity
-            style={[styles.toggleBtn, isPremium && styles.toggleBtnActive]}
-            onPress={togglePremium}
-          >
-            <Text style={styles.toggleBtnText}>
-              {isPremium ? t('deactivatePremium') : t('activatePremium')}
-            </Text>
+          {!isPremium && (
+            <TouchableOpacity
+              style={styles.upgradeBtn}
+              onPress={() => navigation.getParent()?.navigate('Subscription')}
+            >
+              <Text style={styles.upgradeBtnText}>{t('upgradeToPremium')}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore}>
+            <Text style={styles.restoreBtnText}>{t('restorePurchases')}</Text>
           </TouchableOpacity>
-          <Text style={styles.testHint}>(Test toggle)</Text>
         </View>
-
-        {!isPremium && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('credits')}</Text>
-            <View style={styles.creditsRow}>
-              <View style={styles.creditItem}>
-                <Text style={styles.creditNumber}>{credits}</Text>
-                <Text style={styles.creditLabel}>{t('available')}</Text>
-              </View>
-              <View style={styles.creditItem}>
-                <Text style={styles.creditNumber}>{shareCount}/3</Text>
-                <Text style={styles.creditLabel}>{t('sharesUsed')}</Text>
-              </View>
-            </View>
-            <Text style={styles.creditsHint}>{t('shareCreditsHint')}</Text>
-          </View>
-        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('settings')}</Text>
@@ -83,11 +78,10 @@ export default function ProfileScreen() {
         {!isPremium && (
           <View style={styles.premiumCard}>
             <Text style={styles.premiumTitle}>{t('premiumFeatures')}</Text>
-            <Text style={styles.premiumFeature}>{t('unlimitedDrawings')}</Text>
             <Text style={styles.premiumFeature}>{t('allDifficulties')}</Text>
             <Text style={styles.premiumFeature}>{t('noWatermark')}</Text>
             <Text style={styles.premiumFeature}>{t('allPalettes')}</Text>
-            <Text style={styles.premiumFeature}>{t('restartAnytime')}</Text>
+            <Text style={styles.premiumFeature}>{t('noAds')}</Text>
           </View>
         )}
 
@@ -134,20 +128,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   freeBadgeText: { color: '#aaa', fontSize: 14, fontWeight: '700' },
-  toggleBtn: {
-    backgroundColor: '#2a2a2a',
-    paddingVertical: 10,
+  upgradeBtn: {
+    backgroundColor: '#00ff88',
+    paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
+    marginBottom: 8,
   },
-  toggleBtnActive: { backgroundColor: '#2a1a1a' },
-  toggleBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  testHint: { color: '#555', fontSize: 11, textAlign: 'center', marginTop: 4 },
-  creditsRow: { flexDirection: 'row', gap: 20, marginBottom: 12 },
-  creditItem: { alignItems: 'center' },
-  creditNumber: { color: '#FFD600', fontSize: 28, fontWeight: '800' },
-  creditLabel: { color: '#888', fontSize: 12, marginTop: 2 },
-  creditsHint: { color: '#666', fontSize: 12, lineHeight: 18 },
+  upgradeBtnText: { color: '#111', fontSize: 14, fontWeight: '700' },
+  restoreBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  restoreBtnText: { color: '#888', fontSize: 13 },
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

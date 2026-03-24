@@ -10,7 +10,7 @@ import { useLanguage } from '../../i18n/LanguageContext'
 import { getPageById } from '../../core/data/coloringPages'
 import { useAppGate } from '../../core/context/AppGateContext'
 import { useCredits } from '../../core/context/CreditsContext'
-import { MockVideoAd, MockBannerAd, useVideoAd } from '../../core/ads/AdService'
+import { useInterstitialAd, AdBanner, MockInterstitial } from '../../core/ads/AdService'
 import CanvasWebView, { CanvasWebViewHandle } from './canvas/CanvasWebView'
 import ToolBar from './components/ToolBar'
 import ToneSlider from './components/ToneSlider'
@@ -52,29 +52,28 @@ export default function PaintingScreen() {
   // Ads
   const { adsUnlocked, shouldShowVideoAd, recordAdShown } = useAppGate()
   const { isPremium } = useCredits()
-  const { showing: adShowing, showAd, onAdClosed: onAdClosedBase } = useVideoAd()
+  const { showAd, mockVisible, closeMock } = useInterstitialAd()
   const [initialAdShown, setInitialAdShown] = useState(false)
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const onAdClosed = useCallback(() => {
-    onAdClosedBase()
-    recordAdShown()
-  }, [onAdClosedBase, recordAdShown])
-
+  // Mostrar interstitial ao entrar, se anúncios desbloqueados
   useEffect(() => {
-    if (adsUnlocked && !initialAdShown && shouldShowVideoAd()) {
+    if (adsUnlocked && !isPremium && !initialAdShown && shouldShowVideoAd()) {
       setInitialAdShown(true)
-      showAd()
+      showAd(() => recordAdShown())
     }
   }, [adsUnlocked]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Timer para interstitials periódicos
   useEffect(() => {
-    if (!adsUnlocked) return
+    if (!adsUnlocked || isPremium) return
     adTimerRef.current = setInterval(() => {
-      if (shouldShowVideoAd()) showAd()
+      if (shouldShowVideoAd()) {
+        showAd(() => recordAdShown())
+      }
     }, 60_000)
     return () => { if (adTimerRef.current) clearInterval(adTimerRef.current) }
-  }, [adsUnlocked, shouldShowVideoAd, showAd])
+  }, [adsUnlocked, isPremium, shouldShowVideoAd, showAd, recordAdShown])
 
   const toolDef = TOOLS.find((t) => t.id === selectedTool)
   const showBrushSize = (toolDef?.hasBrushSize ?? false) && !isDrawing && !brushSliderDismissed
@@ -169,7 +168,7 @@ export default function PaintingScreen() {
               { text: t('exit'), style: 'destructive', onPress: () => navigation.goBack() },
             ])
           }}>
-            <Text style={styles.topBtnText}>✕</Text>
+            <Text style={styles.topBtnText}>{'\u2715'}</Text>
           </TouchableOpacity>
           <View style={styles.topCenter}>
             <View style={styles.colorPreview}>
@@ -184,11 +183,11 @@ export default function PaintingScreen() {
 
         {/* Canvas area */}
         <View style={styles.canvasOuter} onLayout={handleCanvasLayout}>
-          {canvasSize && (page.imageSource || page.imageUrl) && (
+          {canvasSize && page.imageUrl && (
             <View style={styles.canvasCenter}>
               <CanvasWebView
                 ref={canvasRef}
-                imageSource={page.imageUrl ?? page.imageSource!}
+                imageSource={page.imageUrl}
                 width={canvasSize.w}
                 height={canvasSize.h}
                 tool={selectedTool}
@@ -253,8 +252,8 @@ export default function PaintingScreen() {
           <PaletteBar selectedColor={selectedColor} onSelectColor={handleSelectColor} recentColors={recentColors} />
         </View>
 
-        <MockBannerAd visible={!isPremium} />
-        <MockVideoAd visible={adShowing} onClose={onAdClosed} />
+        <AdBanner visible={!isPremium && adsUnlocked} />
+        <MockInterstitial visible={mockVisible} onClose={closeMock} />
       </View>
     </ScreenWrapper>
   )

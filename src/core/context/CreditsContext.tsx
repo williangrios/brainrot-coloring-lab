@@ -1,87 +1,127 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import {
-  initCredits,
-  getCredits,
-  spendCredit,
-  earnCreditFromShare,
-  getShareCount,
-} from '../storage/creditsStorage'
+import { Platform } from 'react-native'
 
-const PREMIUM_KEY = '@brainrot_premium'
+/**
+ * Contexto Premium com RevenueCat.
+ *
+ * Em Expo Go: RevenueCat não está disponível, opera em modo free.
+ * Em dev build / produção: usa react-native-purchases real.
+ *
+ * TODO: substituir as chaves e entitlement ID pelos valores reais.
+ */
 
-interface CreditsContextType {
-  credits: number
-  shareCount: number
-  isPremium: boolean
-  loading: boolean
-  spend: () => Promise<boolean>
-  earnFromShare: () => Promise<boolean>
-  refresh: () => Promise<void>
-  togglePremium: () => Promise<void>
+// ── Detectar se módulo nativo está disponível ────────────────
+
+let Purchases: any = null
+
+try {
+  Purchases = require('react-native-purchases').default
+} catch {
+  // Módulo nativo não disponível (Expo Go)
 }
 
-const CreditsContext = createContext<CreditsContextType>({
-  credits: 0,
-  shareCount: 0,
+const isNativeAvailable = Purchases !== null
+
+const REVENUECAT_API_KEY = Platform.select({
+  ios: 'appl_YOUR_REVENUECAT_IOS_KEY',
+  android: 'goog_YOUR_REVENUECAT_ANDROID_KEY',
+}) ?? ''
+
+const PREMIUM_ENTITLEMENT = 'premium'
+
+// ── Tipos ────────────────────────────────────────────────────
+
+interface PurchasesPackage {
+  product: { priceString: string }
+  [key: string]: any
+}
+
+interface PremiumContextType {
+  isPremium: boolean
+  loading: boolean
+  packages: PurchasesPackage[]
+  purchase: (pkg: PurchasesPackage) => Promise<boolean>
+  restore: () => Promise<boolean>
+}
+
+const PremiumContext = createContext<PremiumContextType>({
   isPremium: false,
   loading: true,
-  spend: async () => false,
-  earnFromShare: async () => false,
-  refresh: async () => {},
-  togglePremium: async () => {},
+  packages: [],
+  purchase: async () => false,
+  restore: async () => false,
 })
 
+// ── Provider ─────────────────────────────────────────────────
+
 export function CreditsProvider({ children }: { children: React.ReactNode }) {
-  const [credits, setCredits] = useState(0)
-  const [shareCount, setShareCount] = useState(0)
   const [isPremium, setIsPremium] = useState(false)
   const [loading, setLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    const c = await getCredits()
-    const s = await getShareCount()
-    setCredits(c)
-    setShareCount(s)
-  }, [])
+  const [packages, setPackages] = useState<PurchasesPackage[]>([])
 
   useEffect(() => {
-    Promise.all([
-      initCredits(),
-      getShareCount(),
-      AsyncStorage.getItem(PREMIUM_KEY),
-    ]).then(([c, s, p]) => {
-      setCredits(c)
-      setShareCount(s)
-      setIsPremium(p === 'true')
+    async function init() {
+      if (!isNativeAvailable) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        Purchases.configure({ apiKey: REVENUECAT_API_KEY })
+
+        const info = await Purchases.getCustomerInfo()
+        setIsPremium(info.entitlements.active[PREMIUM_ENTITLEMENT] !== undefined)
+
+        const offerings = await Purchases.getOfferings()
+        if (offerings.current?.availablePackages) {
+          setPackages(offerings.current.availablePackages)
+        }
+      } catch {
+        // RevenueCat não configurado — modo free
+      }
       setLoading(false)
-    })
+    }
+
+    init()
+
+    if (isNativeAvailable) {
+      Purchases.addCustomerInfoUpdateListener((info: any) => {
+        setIsPremium(info.entitlements.active[PREMIUM_ENTITLEMENT] !== undefined)
+      })
+    }
+
+    return () => {}
   }, [])
 
-  const spend = useCallback(async () => {
-    if (isPremium) return true
-    const success = await spendCredit()
-    if (success) await refresh()
-    return success
-  }, [isPremium, refresh])
+  const purchase = useCallback(async (pkg: PurchasesPackage): Promise<boolean> => {
+    if (!isNativeAvailable) return false
+    try {
+      const { customerInfo } = await Purchases.purchasePackage(pkg)
+      const active = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT] !== undefined
+      setIsPremium(active)
+      return active
+    } catch {
+      return false
+    }
+  }, [])
 
-  const earnFromShare = useCallback(async () => {
-    const success = await earnCreditFromShare()
-    if (success) await refresh()
-    return success
-  }, [refresh])
-
-  const togglePremium = useCallback(async () => {
-    const newVal = !isPremium
-    setIsPremium(newVal)
-    await AsyncStorage.setItem(PREMIUM_KEY, newVal ? 'true' : 'false')
-  }, [isPremium])
+  const restore = useCallback(async (): Promise<boolean> => {
+    if (!isNativeAvailable) return false
+    try {
+      const info = await Purchases.restorePurchases()
+      const active = info.entitlements.active[PREMIUM_ENTITLEMENT] !== undefined
+      setIsPremium(active)
+      return active
+    } catch {
+      return false
+    }
+  }, [])
 
   return (
-    <CreditsContext.Provider value={{ credits, shareCount, isPremium, loading, spend, earnFromShare, refresh, togglePremium }}>
+    <PremiumContext.Provider value={{ isPremium, loading, packages, purchase, restore }}>
       {children}
-    </CreditsContext.Provider>
+    </PremiumContext.Provider>
   )
 }
 
-export const useCredits = () => useContext(CreditsContext)
+export const useCredits = () => useContext(PremiumContext)

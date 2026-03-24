@@ -2,22 +2,24 @@ import React, { createContext, useContext, useState, useCallback, useRef } from 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 /**
- * Controls the "gates" a free user must pass through:
- * 1. After first drawing → rating prompt (before any ads appear)
- * 2. After rating/feedback → ads are unlocked
+ * Controla o fluxo de avaliação e liberação de anúncios:
  *
- * Also tracks ad timing (1-minute interval).
+ * 1. Após cada desenho → pergunta quantas estrelas
+ * 2. Se 4-5 → abre página de review na loja
+ * 3. Se ≤3 → fecha
+ * 4. Em ambos os casos → desbloqueia anúncios
+ *
+ * Anúncios só aparecem DEPOIS da primeira avaliação,
+ * evitando reviews negativos por excesso de anúncio.
  */
 
 interface AppGateState {
-  hasRated: boolean        // user completed the rating flow (yes or no)
-  adsUnlocked: boolean     // ads can now be shown
-  drawingCount: number     // how many drawings the user has finished
-  lastAdTime: number       // timestamp of last video ad shown
+  hasRated: boolean
+  adsUnlocked: boolean
+  lastAdTime: number
 }
 
 interface AppGateContextValue extends AppGateState {
-  incrementDrawingCount: () => void
   shouldShowRating: () => boolean
   completeRating: () => void
   shouldShowVideoAd: () => boolean
@@ -27,18 +29,16 @@ interface AppGateContextValue extends AppGateState {
 const AppGateContext = createContext<AppGateContextValue | null>(null)
 
 const STORAGE_KEY = '@brainrot_app_gate'
-const AD_INTERVAL_MS = 60_000 // 1 minute
+const AD_INTERVAL_MS = 60_000 // 1 minuto entre interstitials
 
 export function AppGateProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppGateState>({
     hasRated: false,
     adsUnlocked: false,
-    drawingCount: 0,
     lastAdTime: 0,
   })
   const loaded = useRef(false)
 
-  // Load persisted state on first render
   React.useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) {
@@ -55,18 +55,10 @@ export function AppGateProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newState)).catch(() => {})
   }, [])
 
-  const incrementDrawingCount = useCallback(() => {
-    setState((prev) => {
-      const next = { ...prev, drawingCount: prev.drawingCount + 1 }
-      persist(next)
-      return next
-    })
-  }, [persist])
-
   const shouldShowRating = useCallback(() => {
-    // Show rating after first completed drawing, only once
-    return !state.hasRated && state.drawingCount >= 1
-  }, [state.hasRated, state.drawingCount])
+    // Mostra a tela de rating enquanto o usuário não tiver avaliado
+    return !state.hasRated
+  }, [state.hasRated])
 
   const completeRating = useCallback(() => {
     setState((prev) => {
@@ -93,7 +85,6 @@ export function AppGateProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppGateContext.Provider value={{
       ...state,
-      incrementDrawingCount,
       shouldShowRating,
       completeRating,
       shouldShowVideoAd,

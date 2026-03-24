@@ -8,8 +8,6 @@ import {
   Alert,
   Dimensions,
   Share,
-  Linking,
-  Platform,
   Image,
 } from 'react-native'
 import {
@@ -21,7 +19,6 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../../core/types/navigation'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
-import { useCredits } from '../../core/context/CreditsContext'
 import { useAppGate } from '../../core/context/AppGateContext'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { saveDrawing, generateId } from '../../core/storage/drawingStorage'
@@ -37,20 +34,14 @@ export default function FinalizationScreen() {
   const route = useRoute<FinalizationRoute>()
   const navigation = useNavigation<Nav>()
   const { pageId, snapshotDataUrl } = route.params
-  const { earnFromShare, shareCount } = useCredits()
-  const { incrementDrawingCount, shouldShowRating } = useAppGate()
+  const { shouldShowRating } = useAppGate()
   const { t } = useLanguage()
-
-  React.useEffect(() => {
-    incrementDrawingCount()
-  }, [])
 
   const page = getPageById(pageId)
   const backendName = page?.name ?? 'My Drawing'
   const [customName, setCustomName] = useState('')
   const [useCustom, setUseCustom] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [shared, setShared] = useState(false)
 
   const finalName = useCustom ? customName : backendName
 
@@ -71,62 +62,35 @@ export default function FinalizationScreen() {
     Alert.alert(t('saved'), t('drawingSaved'))
   }
 
-  const onShareComplete = async () => {
-    if (shareCount < 3) {
-      const earned = await earnFromShare()
-      if (earned) {
-        Alert.alert(t('creditEarned'), t('earnedCreditMsg'))
-      }
-    }
-    setShared(true)
-  }
-
   const handleShare = async () => {
     try {
       const message = t('shareMessage').replace('{name}', finalName)
-      const result = await Share.share({ message })
-      if (result.action === Share.sharedAction) {
-        await onShareComplete()
-      }
+      await Share.share({ message })
     } catch {
       // Cancelled
     }
   }
 
-  const handleRate = async (positive: boolean) => {
-    if (positive) {
-      const storeUrl = Platform.OS === 'ios'
-        ? 'https://apps.apple.com/app/idXXXXXXXXXX'
-        : 'https://play.google.com/store/apps/details?id=br.com.wrsolucoesdigitais.brainrotcoloringlab'
-      try { await Linking.openURL(storeUrl) } catch { /* */ }
-    }
+  const goHome = () => {
+    navigation.dispatch(
+      CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
+    )
   }
 
   const handleDone = () => {
     if (shouldShowRating()) {
-      navigation.navigate('Rating', {
-        onRate: handleRate,
-        onDismiss: () => {
-          navigation.dispatch(
-            CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
-          )
-        },
-      })
+      // Mostrar tela de avaliação antes de voltar
+      navigation.navigate('Rating')
     } else {
-      navigation.dispatch(
-        CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
-      )
+      goHome()
     }
   }
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      // Ao voltar do RatingScreen (se o usuário avaliou ou fechou), ir para home
       if (saved && !shouldShowRating()) {
-        setTimeout(() => {
-          navigation.dispatch(
-            CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] }),
-          )
-        }, 100)
+        setTimeout(() => goHome(), 100)
       }
     })
     return unsubscribe
@@ -197,21 +161,12 @@ export default function FinalizationScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.shareBtn, shared && styles.sharedBtn]}
+            style={styles.shareBtn}
             onPress={handleShare}
-            disabled={shared}
           >
-            <Text style={styles.shareBtnText}>
-              {shared ? t('shared') : t('shareAndEarn')}
-            </Text>
+            <Text style={styles.shareBtnText}>{t('share')}</Text>
           </TouchableOpacity>
         </View>
-
-        {!shared && shareCount < 3 && (
-          <Text style={styles.shareHint}>
-            {t('shareHint').replace('{count}', String(3 - shareCount))}
-          </Text>
-        )}
       </View>
     </ScreenWrapper>
   )
@@ -233,7 +188,5 @@ const styles = StyleSheet.create({
   savedBtn: { backgroundColor: '#00cc6a' },
   saveBtnText: { color: '#111', fontSize: 16, fontWeight: '700' },
   shareBtn: { backgroundColor: '#1a1a1a', paddingVertical: 14, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: '#00ff88' },
-  sharedBtn: { borderColor: '#444', opacity: 0.5 },
   shareBtnText: { color: '#00ff88', fontSize: 16, fontWeight: '700' },
-  shareHint: { color: '#666', fontSize: 12, marginTop: 8, textAlign: 'center' },
 })
