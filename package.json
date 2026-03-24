@@ -8,7 +8,13 @@
     "tunnel": "set EXPO_TUNNEL_TIMEOUT=120000&& npx expo start --tunnel --clear",
     "ios": "expo run:ios",
     "dev": "npx expo start --dev-client --tunnel --clear",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:android": "eas build --platform android --profile production",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:all": "eas build --platform all --profile production",
+    "submit:android": "eas submit --platform android --profile production",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "release": "eas build --platform all --profile production --auto-submit"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",
@@ -27,6 +33,8 @@
     "react": "18.3.1",
     "react-native": "0.77.3",
     "react-native-gesture-handler": "~2.28.0",
+    "react-native-google-mobile-ads": "^16.3.0",
+    "react-native-purchases": "^9.14.0",
     "react-native-safe-area-context": "~5.4.0",
     "react-native-screens": "~4.10.0",
     "react-native-svg": "15.12.1",

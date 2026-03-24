@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "wr-solucoes-play-store",
+  "private_key_id": "36c92b1aab15682256f7940ac6a074300f065ad6",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDd645PnEATmOGc\n645Elz9gwfYfnXED4/VjZCcvHQCIPNubXCdEuTE2JcRbvuVChEONOKIPytVraujI\nEf+m36EscaDnGfKG5oUl5oyabyh9oS9VsWv7hJ7vgsqGTJJNftBosL35+N+KYjMH\nOx72StcfjY1fO9M23wfQ/gaJW3iLgrZeE0+z+l7mfyUqaDg4eSLT18OPyWDvtYT6\nuY38OQ2vGicMjmquDdZaPM7791OQi7TL5A7TihLJpDKC5QQ+nEK+PTtomaxWgvvy\nS6PVeCnd6aS+SsmOOSre/mPA14bfyZzKHdiMwzuX5J8Ib+kP/MVG0nZJBke3s21O\nqXTnCIK3AgMBAAECggEACHXSeYovGGjH9gmsR7r8Y0A80JoybWc7//fdy3pSCGlw\n6/3LFSTcuPYytPQUk0Do0l5du5nuvx1M5QTyBm0O4cfLzj67TIu9PeNsLvcI+Q/k\np+v7pZOwItjIZLPaTFAuREWgDCoL0ccPEld/4vxygOtJf9V7ullVHMxrAiU9CWM7\nN7JKu1gO36WaNAfvjBv0cuBdWE8QCo+PgdQ87nIUswPNPu/2w1EvXNzXTzim8h/5\n/Q2+liuVDWxsd6gdc1Bd7SzrftrPqD6+jO6dTh+3id7j6xtcQmGQ3VETm/2bvzJ6\nELw1lmLII5EIOu3xFLW8C1WTPQhc6F3GAmrdJuApAQKBgQDwU2OUvJSNBmlbNkRL\nwaUXTMkZo7XVgXWn7NJhRHQpCN1Z46/JoUC+UEvLs+GamuLrph1ySBlTekUBRiL5\n8fxKt8+sxiLFxMuDYQZpgWCIiNgHj7Tg7j5NFzAh9VP/VAgh+WoYequ4LWyAIDk4\nAIr6bz48k70Kxw4JwFBMMin8cwKBgQDsZNteA7kDZzFn/UDQbpZybPbOfNapV1aq\nmD0OLUb3jEVZna3/a9RCfDTPWZ4rn3LUzTZJKg07nOdCOOIt02f5ykxCRH+AnNoV\nw1+rp+GUfuiaZGGzo3tKWSLH5X5Sp87H6qsIEJqQoyk6r7cZtfdDi16mRcCnLLbV\nCLXERaozrQKBgAy6bei/wCJj94qEKkPU4riEMZZxDD1dmOym51GNfZV6ybZsD7Bf\nIP2zZQBJ66XzlBck+iRGW0kHjcYOf+W7AkC20YH2EHtm+9xedCd8Wa+Bh+eGne7X\nz2bn1n3F74fzXGboPc1EGfosNbXnfwBPTw0KfUJaFMYQWtb7X4VZls2vAoGAQfci\n/+kqB7kUIGCbZY52jRe7B4PuovKsTI6O+xXHZ+zMrWVC2LPOV38xfWsUqDemY5ug\nOmpxpuDx55jYBNGpghrhjNxweANNGCWc3NnMKRQA9JRubyJ/lQ+qlP2FcqtBGKhz\ncZywhQwCxU2jWplcloydrOhqCjyACJKVpl+KT0ECgYAmxmh3VB80DfzTF2ipKbeA\n/+FTaHWcWdqA0yGMnM2zAQSHNUWw9f2gvbhobtmmf3Zdko8zjjbCS5GO+4aT6HMK\nIIduexDNIIoZxIbWwnvNmkQPoX/+WdM3D83VhGgsSq0O6EV5FCElXYjQHkK6OoRd\nAKi4uZWOcsg6JsdCuZDlKA==\n-----END PRIVATE KEY-----\n",
+  "client_email": "github-actions-play@wr-solucoes-play-store.iam.gserviceaccount.com",
+  "client_id": "112581513321609224528",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/github-actions-play%40wr-solucoes-play-store.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

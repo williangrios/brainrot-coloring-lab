@@ -14,10 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "br.com.wrsolucoesdigitais.brainrotcoloringlab"
+      "bundleIdentifier": "br.com.wrsolucoesdigitais.brainrotcoloring"
     },
     "android": {
-      "package": "br.com.wrsolucoesdigitais.brainrotcoloringlab",
+      "package": "br.com.wrsolucoesdigitais.brainrotcoloring",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -31,7 +31,14 @@
     },
     "plugins": [
       "expo-localization",
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY",
+          "iosAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY"
+        }
+      ]
     ]
   }
 }

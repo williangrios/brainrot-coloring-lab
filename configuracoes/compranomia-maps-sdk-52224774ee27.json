@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "compranomia-maps-sdk",
+  "private_key_id": "52224774ee27696a73437d78cca6e61088b54c06",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC5p1ruEQfz9o/t\nZgKHZOhiYS7uOuxNU9SiGmO1EBWzM/+RBmcSpAEr/vySfQMTCFh4MG2DSxGiC7u+\ngokPLuXyh8rCczUNp81cgHkOn+hR/SpDZ8SmXB6mMAARdh153nCVKWKC7V2NjBRn\nxi65K1gmcp9CV5Ma5G6yeALNYXxjFDu46FiJs4x3nzkKGJH9KI1/jDLydWBjGLlr\nY0zgd0omGM+ZXvYJzAEhIsvaZ8a7rfpqKyb+L0O4ryvxjf69OCUnK7V1sSk5Xza4\nwTffPVWYjRjjLyXpFaXSmKCj8SIZMHoYm2KveR8nYbydJ5F+5/7CsApm72Ir5mMQ\n7XqbsF/BAgMBAAECggEAFVgxG11QZ4NRtVbM1CGtGQB425FhMRvB/tgfXgYJJKcG\nCzer+ofqDZOdmL7wL0w+laTltlpXXuTP8z2BQgJflBR6IoSJ1TXVZbzsjhqi5GhB\np2nDAWhmaq9qlpdYmLYTBgcxyQE+yAMSpoKxxP6/ff4gIsm8QzN/qZukINZELYTH\n/LuS2ueT/RofnEQwQ/ueHn7880Z3E4H1Y0Mpj1IpoKjqcVv4RFIDwVE0fghy+co8\nG6JTwpJZfG461U7dnVVgiHlTN3Y9/ZZuEVWFPWlRWskf3QAZYe7c2+n/7WkZX/jK\n6ac7fYsPOJfXo9fRoW/h9HLIbj2k6I7jdMe/MmJC0QKBgQDqg6DHDXoCFn1YIKcW\nrqBodoEMbM6t65P8TKx8d/FghzQfN+DdqpgxFyXP3mHb2WQZlOo+hvAX+m+UQtDj\nFm/L4wFRDK2ANM4MY9/cyE9r8A02xP725eOJ7A4uO67Wd/h2qM7JbUnI9u2Yz5CB\nVzzeLPphCiN7une6WZSaXxFX6QKBgQDKqb0JevymnaO+iDGurCo2/NwLcVym1L9K\nkjjWY3yyx/XRXt7yn49ovbAr1wZ8fx9rmoUXw4Kt1f2AGhzhV5FsNFRC1Q8g8zmc\n1qGdT5llqIRp+7zoSDNzGUwQY8pMv6FKrXO602v3WUyO+UsCSLoBAF5w5vcp1f/W\nbv0S4/Q6GQKBgBe7SkHac0ZS0ExiwYXiFgl8NIL1X9Tpygf2Gl5eJOcHx5aBKRhF\nczFEjmcCshR1Y1PTZgD91r4WccQnHsxcMOQJDNEO31/h+Bf442aMPr1FhZDNTp/d\nk7EZWjYDhCXf7hzT6Fkp3hWgJ1sXZiAwm9A/7PZ0+DJFJGiPOCKHDFJBAoGAKcMa\nmlaGs8ruUDf+jPEbbeNjcNQ2dIaIuNQy9DLiInFEPZXgOX0Z70qPgCk6Q/NqRSE9\nZe07A5mCOKCo7OK/q92Is5D2IiMc7y3ndeRORv2X88MVZYRjXceLviDiMjiXAy2F\nGK2ypPD47sl+ZIUaF1S9IWTm7+8SXlzWt8rTrBkCgYAuSaD3rdONhVRjHtXTPzqK\nJKmbtHq2RMEcle8E/ANf19n7AaXlDdpIfsYQrliCEc6vQnVhvcrxn1ispX5IAKDt\nnITM35Kt4Sm/50VbQcau+XuIVdEkPAOA0OXC289bWaJHUK6/HtRHOVGAH+v12j+G\ntlNqj1JyKR2/kGWFiu4CBA==\n-----END PRIVATE KEY-----\n",
+  "client_email": "revenuecat@compranomia-maps-sdk.iam.gserviceaccount.com",
+  "client_id": "105128891500565888534",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/revenuecat%40compranomia-maps-sdk.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
