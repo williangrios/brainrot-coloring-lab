@@ -1,5 +1,14 @@
 import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Image,
+  Dimensions,
+} from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../../core/types/navigation'
@@ -9,21 +18,52 @@ import ScreenWrapper from '../../core/components/ScreenWrapper'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
+const { width } = Dimensions.get('window')
+
+const PLAN_ORDER = ['$rc_weekly', '$rc_monthly', '$rc_annual'] as const
+
+function getPlanMeta(packageType: string, t: (k: string) => string) {
+  switch (packageType) {
+    case '$rc_weekly':
+      return { label: t('planWeekly'), period: t('perWeek'), badge: null }
+    case '$rc_monthly':
+      return { label: t('planMonthly'), period: t('perMonth'), badge: t('mostPopular') }
+    case '$rc_annual':
+      return { label: t('planYearly'), period: t('perYear'), badge: t('bestValue') }
+    default:
+      return { label: '', period: '', badge: null }
+  }
+}
+
 export default function SubscriptionScreen() {
   const navigation = useNavigation<Nav>()
   const { t } = useLanguage()
   const { packages, purchase, restore } = useCredits()
   const [purchasing, setPurchasing] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+
+  // Sort packages by plan order, default select yearly
+  const sortedPackages = [...packages].sort((a, b) => {
+    const ai = PLAN_ORDER.indexOf(a.packageType as any)
+    const bi = PLAN_ORDER.indexOf(b.packageType as any)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+
+  // Default select yearly (index 2) or last available
+  const effectiveSelected = selectedIndex >= 0
+    ? selectedIndex
+    : sortedPackages.length > 0
+      ? sortedPackages.length - 1
+      : 0
 
   const handlePurchase = async () => {
-    if (packages.length === 0) {
-      // RevenueCat ainda não configurado — pular para app
+    if (sortedPackages.length === 0) {
       navigation.replace('MainTabs')
       return
     }
     setPurchasing(true)
     try {
-      const success = await purchase(packages[0])
+      const success = await purchase(sortedPackages[effectiveSelected])
       if (success) {
         navigation.replace('MainTabs')
       } else {
@@ -48,112 +88,222 @@ export default function SubscriptionScreen() {
     navigation.replace('MainTabs')
   }
 
-  const priceLabel = packages.length > 0
-    ? packages[0].product.priceString
-    : ''
+  const selectedPkg = sortedPackages[effectiveSelected]
+  const selectedPrice = selectedPkg?.product?.priceString ?? ''
 
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Brainrot Coloring</Text>
-          <Text style={styles.subtitle}>Premium</Text>
-
-          <View style={styles.features}>
-            <Text style={styles.feature}>{t('allDifficulties')}</Text>
-            <Text style={styles.feature}>{t('noWatermark')}</Text>
-            <Text style={styles.feature}>{t('allPalettes')}</Text>
-            <Text style={styles.feature}>{t('noAds')}</Text>
-            <Text style={styles.feature}>{t('restartAnytime')}</Text>
+        {/* Top: logo + badge */}
+        <View style={styles.topSection}>
+          <Image
+            source={require('../../../assets/icon.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <View style={styles.premiumBadge}>
+            <Text style={styles.premiumBadgeText}>PREMIUM</Text>
           </View>
+        </View>
 
+        {/* Plan cards */}
+        <View style={styles.plansSection}>
+          {sortedPackages.map((pkg, index) => {
+            const meta = getPlanMeta(pkg.packageType, t)
+            const isSelected = index === effectiveSelected
+
+            return (
+              <TouchableOpacity
+                key={pkg.identifier ?? index}
+                style={[styles.planCard, isSelected && styles.planCardSelected]}
+                onPress={() => setSelectedIndex(index)}
+                activeOpacity={0.7}
+              >
+                {meta.badge && (
+                  <View style={styles.planBadge}>
+                    <Text style={styles.planBadgeText}>{meta.badge}</Text>
+                  </View>
+                )}
+                <Text style={[styles.planLabel, isSelected && styles.planLabelSelected]}>
+                  {meta.label}
+                </Text>
+                <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
+                  {pkg.product.priceString}
+                  <Text style={styles.planPeriod}>{meta.period}</Text>
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+
+          {sortedPackages.length === 0 && (
+            <Text style={styles.noPlanText}>{t('subUnlockTitle')}</Text>
+          )}
+        </View>
+
+        {/* Bottom: CTA always visible */}
+        <View style={styles.bottomSection}>
           <TouchableOpacity
-            style={styles.premiumButton}
+            style={styles.ctaButton}
             onPress={handlePurchase}
             disabled={purchasing}
+            activeOpacity={0.85}
           >
             {purchasing ? (
-              <ActivityIndicator color="#111" />
+              <ActivityIndicator color="#0a0a0a" />
             ) : (
-              <Text style={styles.premiumText}>
-                {priceLabel
-                  ? `${t('startFreeTrial')} — ${priceLabel}`
-                  : t('startFreeTrial')}
+              <Text style={styles.ctaText}>
+                {selectedPrice
+                  ? `${t('subscribe')} \u2014 ${selectedPrice}`
+                  : t('subscribe')}
               </Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.restoreButton} onPress={handleRestore} disabled={purchasing}>
-            <Text style={styles.restoreText}>{t('restorePurchases')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.skipButton} onPress={handleContinue}>
-            <Text style={styles.skipText}>{t('continueFreePlan')}</Text>
-          </TouchableOpacity>
+          <View style={styles.linksRow}>
+            <TouchableOpacity onPress={handleRestore} disabled={purchasing}>
+              <Text style={styles.linkText}>{t('restorePurchases')}</Text>
+            </TouchableOpacity>
+            <Text style={styles.separator}>|</Text>
+            <TouchableOpacity onPress={handleContinue}>
+              <Text style={styles.linkText}>{t('continueFreePlan')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </ScreenWrapper>
   )
 }
 
+const CARD_WIDTH = (width - 48 - 16) / 3
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111',
-    justifyContent: 'center',
+    backgroundColor: '#0a0a0a',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 50,
+    paddingBottom: 36,
   },
-  content: {
-    paddingHorizontal: 30,
+  topSection: {
     alignItems: 'center',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+  logo: {
+    width: width * 0.28,
+    height: width * 0.28,
+    borderRadius: 24,
+    marginBottom: 12,
   },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#00ff88',
-    marginBottom: 40,
-  },
-  features: {
-    alignSelf: 'stretch',
-    marginBottom: 40,
-    gap: 14,
-  },
-  feature: {
-    color: '#ccc',
-    fontSize: 16,
-    paddingLeft: 16,
-  },
-  premiumButton: {
+  premiumBadge: {
     backgroundColor: '#00ff88',
-    paddingVertical: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  premiumBadgeText: {
+    color: '#0a0a0a',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  plansSection: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    flex: 1,
+    alignItems: 'center',
+  },
+  planCard: {
+    width: CARD_WIDTH,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2a2a3e',
+    position: 'relative',
+  },
+  planCardSelected: {
+    borderColor: '#00ff88',
+    backgroundColor: '#0f2a1a',
+  },
+  planBadge: {
+    position: 'absolute',
+    top: -10,
+    backgroundColor: '#00ff88',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  planBadgeText: {
+    color: '#0a0a0a',
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  planLabel: {
+    color: '#888',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  planLabelSelected: {
+    color: '#00ff88',
+  },
+  planPrice: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  planPriceSelected: {
+    color: '#fff',
+  },
+  planPeriod: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#888',
+  },
+  noPlanText: {
+    color: '#888',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  bottomSection: {
+    alignItems: 'center',
+    paddingTop: 12,
+  },
+  ctaButton: {
+    backgroundColor: '#00ff88',
+    paddingVertical: 18,
     borderRadius: 30,
     width: '100%',
     alignItems: 'center',
-    marginBottom: 12,
+    shadowColor: '#00ff88',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  premiumText: {
-    color: '#111',
+  ctaText: {
+    color: '#0a0a0a',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
-  restoreButton: {
-    paddingVertical: 10,
-    marginBottom: 4,
+  linksRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  restoreText: {
-    color: '#888',
+  linkText: {
+    color: '#666',
     fontSize: 13,
   },
-  skipButton: {
-    paddingVertical: 10,
-  },
-  skipText: {
-    color: '#888',
-    fontSize: 15,
+  separator: {
+    color: '#444',
+    fontSize: 13,
   },
 })

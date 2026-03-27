@@ -23,8 +23,8 @@ try {
 const isNativeAvailable = Purchases !== null
 
 const REVENUECAT_API_KEY = Platform.select({
-  ios: 'appl_YOUR_REVENUECAT_IOS_KEY',
-  android: 'goog_YOUR_REVENUECAT_ANDROID_KEY',
+  ios: 'appl_hrOjCMkRrVKRDVXuOpbEzuBfsjQ',
+  android: 'goog_tyHvfuVAWrNYeLbNTvhcgnzDlkp',
 }) ?? ''
 
 const PREMIUM_ENTITLEMENT = 'premium'
@@ -55,7 +55,7 @@ const PremiumContext = createContext<PremiumContextType>({
 // ── Provider ─────────────────────────────────────────────────
 
 export function CreditsProvider({ children }: { children: React.ReactNode }) {
-  const [isPremium, setIsPremium] = useState(false)
+  const [isPremium, setIsPremium] = useState(true) // TODO: voltar para false após teste
   const [loading, setLoading] = useState(true)
   const [packages, setPackages] = useState<PurchasesPackage[]>([])
 

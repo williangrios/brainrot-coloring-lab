@@ -36,7 +36,30 @@
       "WebFetch(domain:aso.dev)",
       "WebFetch(domain:support.zype.com)",
       "WebFetch(domain:help.appscreens.com)",
-      "Bash(gh secret:*)"
+      "Bash(gh secret:*)",
+      "Bash(eas whoami:*)",
+      "Bash(eas:*)",
+      "WebFetch(domain:expo.dev)",
+      "Bash(npm ls:*)",
+      "Bash(npm view:*)",
+      "Bash(grep -r enableBundleCompression C:/Users/User/projetos/brainrot-coloring-lab/node_modules --include=*.js --include=*.gradle --include=*.kt --include=*.kts -l)",
+      "Bash(npx expo-doctor:*)",
+      "Bash(node -e \"console.log\\(require\\(''expo/package.json''\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\(''react-native/package.json''\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\(''react-native-google-mobile-ads/package.json''\\).version\\)\")",
+      "Bash(npx patch-package:*)",
+      "Bash(node -e \"const P = require\\(''react-native-purchases''\\); console.log\\(Object.keys\\(P.PACKAGE_TYPE || {}\\)\\)\")",
+      "Bash(grep -r react-native-purchases /c/Users/User/projetos/brainrot-coloring-lab/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r google-mobile-ads /c/Users/User/projetos/brainrot-coloring-lab/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r TODO /c/Users/User/projetos/brainrot-coloring-lab/src --include=*.tsx --include=*.ts)",
+      "Bash(find C:UsersUserprojetosbrainrot-coloring-labnode_modulesreact-native-google-mobile-ads -type f \\\\\\(-name *.cpp -o -name *.h \\\\\\))",
+      "Bash(find C:UsersUserprojetosbrainrot-coloring-labnode_modulesreact-native -type f \\\\\\(-name *.cpp -o -name *.h \\\\\\))",
+      "Bash(npx npm-check-updates:*)",
+      "Bash(npm info:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\(''''gitHead'''',''''''''\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; v=json.load\\(sys.stdin\\); print\\(''''\\\\n''''.join\\(v[-10:]\\)\\)\")",
+      "Bash(node -e \"const d=require\\(''''fs''''\\).readFileSync\\(0,''''utf8''''\\); const v=JSON.parse\\(d\\); v.slice\\(-10\\).forEach\\(x=>console.log\\(x\\)\\)\")",
+      "Bash(node:*)"
     ]
   }
 }

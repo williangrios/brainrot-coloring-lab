@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "br.com.wrsolucoesdigitais.brainrotcoloring"
+      "bundleIdentifier": "br.com.wrsolucoesdigitais.brainrotcoloring",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "br.com.wrsolucoesdigitais.brainrotcoloring",
@@ -38,7 +41,13 @@
           "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY",
           "iosAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY"
         }
-      ]
-    ]
+      ],
+      "./plugins/fix-bundle-compression"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c6e6e8e2-03e2-4e26-a365-04d77f0c0b9e"
+      }
+    }
   }
 }

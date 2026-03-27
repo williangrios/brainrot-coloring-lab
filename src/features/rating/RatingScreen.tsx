@@ -8,9 +8,8 @@ import { useAppGate } from '../../core/context/AppGateContext'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
-// TODO: substituir pelo ID real do app na loja
 const STORE_URL = Platform.select({
-  ios: 'https://apps.apple.com/app/idXXXXXXXXXX?action=write-review',
+  ios: 'https://apps.apple.com/app/id6761076641?action=write-review',
   android: 'https://play.google.com/store/apps/details?id=br.com.wrsolucoesdigitais.brainrotcoloring',
   default: '',
 })
