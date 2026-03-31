@@ -54,7 +54,7 @@ jobs:
         run: echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}" | base64 -d > google-service-account.json
 
       - name: Submit to Google Play
-        run: eas submit --platform android --profile production --non-interactive
+        run: eas submit --platform android --profile production --non-interactive --latest
 
   # ─── Build iOS ─────────────────────────────────────────────
   build-ios:
@@ -84,7 +84,7 @@ jobs:
         run: eas build --platform ios --profile production --non-interactive
 
       - name: Submit to App Store
-        run: eas submit --platform ios --profile production --non-interactive
+        run: eas submit --platform ios --profile production --non-interactive --latest
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}
