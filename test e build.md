@@ -18,3 +18,8 @@ euzv-cxcq-xlsa-sgsf
   │ EXPO_APPLE_ID                    │ williangrios@yahoo.com.br │
   ├──────────────────────────────────┼───────────────────────────┤
   │ EXPO_APPLE_APP_SPECIFIC_PASSWORD │ a senha que você copiou
+
+
+    Ou se quiser buildar para as duas plataformas de uma vez:
+
+  eas build --platform all --profile production
