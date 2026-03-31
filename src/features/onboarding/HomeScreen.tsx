@@ -23,11 +23,11 @@ const DIFFICULTY_COLORS: Record<Difficulty, string> = {
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>()
-  const { isPremium } = useCredits()
+  const { isPremium, credits, spendCredit, canEarnBySharing } = useCredits()
   const { t } = useLanguage()
   const [recentDrawings, setRecentDrawings] = useState<Drawing[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
-  const [premiumModal, setPremiumModal] = useState(false)
+  const [creditsModal, setCreditsModal] = useState(false)
 
   const { pages: remotePages } = useImages()
 
@@ -38,11 +38,12 @@ export default function HomeScreen() {
     }, [])
   )
 
-  const handleSelectPage = (page: ColoringPage) => {
-    if (page.isPremiumResource && !isPremium) {
-      setPremiumModal(true)
+  const handleSelectPage = async (page: ColoringPage) => {
+    if (!isPremium && credits <= 0) {
+      setCreditsModal(true)
       return
     }
+    if (!isPremium) await spendCredit()
     navigation.getParent()?.navigate('Painting', { pageId: page.id })
   }
 
@@ -134,9 +135,6 @@ export default function HomeScreen() {
                         <View pointerEvents="none">
                           <ColoringPageRenderer pageId={item.id} width={110} height={120} thumbnailUrl={item.thumbnailUrl} />
                         </View>
-                        {item.isPremiumResource && !isPremium && (
-                          <View style={styles.lockBadge}><Text style={styles.lockText}>{'\uD83D\uDD12'}</Text></View>
-                        )}
                       </View>
                       <Text style={styles.pageName} numberOfLines={1}>{item.name || t(item.nameKey)}</Text>
                     </TouchableOpacity>
@@ -158,7 +156,11 @@ export default function HomeScreen() {
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       style={styles.recentCard}
-                      onPress={() => navigation.getParent()?.navigate('Painting', { pageId: item.pageId })}
+                      onPress={async () => {
+                        if (!isPremium && credits <= 0) { setCreditsModal(true); return }
+                        if (!isPremium) await spendCredit()
+                        navigation.getParent()?.navigate('Painting', { pageId: item.pageId })
+                      }}
                       activeOpacity={0.7}
                     >
                       <View style={styles.recentPreview}>
@@ -174,9 +176,17 @@ export default function HomeScreen() {
         }
       />
       <PremiumModal
-        visible={premiumModal}
-        onClose={() => setPremiumModal(false)}
-        onSubscribe={() => setPremiumModal(false)}
+        visible={creditsModal}
+        canEarnBySharing={canEarnBySharing}
+        onClose={() => setCreditsModal(false)}
+        onGoToLibrary={() => {
+          setCreditsModal(false)
+          navigation.navigate('Library')
+        }}
+        onSubscribe={() => {
+          setCreditsModal(false)
+          navigation.getParent()?.navigate('Subscription')
+        }}
       />
     </ScreenWrapper>
   )
@@ -207,18 +217,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lockBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockText: { fontSize: 12 },
   recentCard: { width: 110, backgroundColor: '#1a1a1a', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#222' },
   recentPreview: { height: 100, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   recentName: { color: '#ccc', fontSize: 11, fontWeight: '600', padding: 6, textAlign: 'center' },

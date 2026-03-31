@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Alert, Share, Image } from 'react-native'
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import Header from '../../core/components/Header'
 import { useLanguage } from '../../i18n/LanguageContext'
+import { useCredits } from '../../core/context/CreditsContext'
 import { getDrawings, deleteDrawing, Drawing } from '../../core/storage/drawingStorage'
 
 function DrawingPreview({ drawing, size = 140 }: { drawing: Drawing; size?: number }) {
@@ -28,6 +29,8 @@ function DrawingPreview({ drawing, size = 140 }: { drawing: Drawing; size?: numb
 export default function LibraryScreen() {
   const [drawings, setDrawings] = useState<Drawing[]>([])
   const { t } = useLanguage()
+  const { canEarnBySharing, earnCreditsFromShare, hasRated } = useCredits()
+  const navigation = useNavigation<any>()
 
   const loadDrawings = useCallback(async () => {
     const d = await getDrawings()
@@ -44,9 +47,21 @@ export default function LibraryScreen() {
   }
 
   const handleShare = async (drawing: Drawing) => {
+    // Limite atingido após avaliação: ir direto para assinatura
+    if (hasRated && !canEarnBySharing) {
+      navigation.getParent()?.navigate('Subscription')
+      return
+    }
     try {
       const message = t('shareMessage').replace('{name}', drawing.name)
-      await Share.share({ message })
+      const result = await Share.share({ message })
+      const didShare = result.action === Share.sharedAction
+      if (didShare && canEarnBySharing) {
+        const earned = await earnCreditsFromShare()
+        if (earned) {
+          Alert.alert(t('creditEarned'), t('earnedCreditMsg'))
+        }
+      }
     } catch { /* cancelled */ }
   }
 
@@ -79,7 +94,9 @@ export default function LibraryScreen() {
               <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
               <View style={styles.cardActions}>
                 <TouchableOpacity onPress={() => handleShare(item)} style={styles.cardBtn}>
-                  <Text style={styles.cardBtnText}>{t('share')}</Text>
+                  <Text style={styles.cardBtnText}>
+                    {canEarnBySharing ? t('shareAndEarn') : t('share')}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(item)} style={styles.cardBtnDanger}>
                   <Text style={styles.cardBtnDangerText}>{'\u2715'}</Text>

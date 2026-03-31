@@ -18,9 +18,9 @@ const DIFFICULTY_COLORS: Record<Difficulty, string> = {
 
 export default function ExploreScreen() {
   const navigation = useNavigation<any>()
-  const { isPremium } = useCredits()
+  const { isPremium, credits, spendCredit, canEarnBySharing } = useCredits()
   const { t } = useLanguage()
-  const [premiumModal, setPremiumModal] = useState(false)
+  const [creditsModal, setCreditsModal] = useState(false)
 
   const { pages: remotePages } = useImages()
 
@@ -36,11 +36,12 @@ export default function ExploreScreen() {
     return merged
   }, [remotePages])
 
-  const handleSelectPage = (page: ColoringPage) => {
-    if (page.isPremiumResource && !isPremium) {
-      setPremiumModal(true)
+  const handleSelectPage = async (page: ColoringPage) => {
+    if (!isPremium && credits <= 0) {
+      setCreditsModal(true)
       return
     }
+    if (!isPremium) await spendCredit()
     navigation.getParent()?.navigate('Painting', { pageId: page.id })
   }
 
@@ -110,9 +111,17 @@ export default function ExploreScreen() {
         }
       />
       <PremiumModal
-        visible={premiumModal}
-        onClose={() => setPremiumModal(false)}
-        onSubscribe={() => setPremiumModal(false)}
+        visible={creditsModal}
+        canEarnBySharing={canEarnBySharing}
+        onClose={() => setCreditsModal(false)}
+        onGoToLibrary={() => {
+          setCreditsModal(false)
+          navigation.navigate('Library')
+        }}
+        onSubscribe={() => {
+          setCreditsModal(false)
+          navigation.getParent()?.navigate('Subscription')
+        }}
       />
     </ScreenWrapper>
   )

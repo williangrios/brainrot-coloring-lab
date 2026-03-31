@@ -19,7 +19,7 @@ export default function RootNavigator() {
 
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-      setInitialRoute(val === 'true' ? 'Subscription' : 'LanguageSelect');
+      setInitialRoute(val === 'true' ? 'MainTabs' : 'LanguageSelect');
     });
   }, []);
 

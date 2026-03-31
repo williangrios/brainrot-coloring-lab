@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../../core/types/navigation'
 import { useLanguage } from '../../i18n/LanguageContext'
-import { useAppGate } from '../../core/context/AppGateContext'
+import { useCredits } from '../../core/context/CreditsContext'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
@@ -29,28 +29,22 @@ function StarRow({ rating, onRate }: { rating: number; onRate: (n: number) => vo
 export default function RatingScreen() {
   const navigation = useNavigation<Nav>()
   const { t } = useLanguage()
-  const { completeRating } = useAppGate()
+  const { completeRating } = useCredits()
   const [rating, setRating] = useState(0)
 
   const handleRate = async (stars: number) => {
     setRating(stars)
+    await completeRating()
 
     if (stars >= 4) {
-      // Avaliação positiva → abre loja para review
-      completeRating()
       try {
         if (STORE_URL) await Linking.openURL(STORE_URL)
       } catch {}
-      navigation.goBack()
-    } else {
-      // Avaliação ≤3 → fecha e desbloqueia anúncios
-      completeRating()
-      navigation.goBack()
     }
+    navigation.goBack()
   }
 
   const handleDismiss = () => {
-    // Fechar SEM marcar como avaliado → vai perguntar novamente no próximo desenho
     navigation.goBack()
   }
 

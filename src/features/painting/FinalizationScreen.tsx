@@ -19,7 +19,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../../core/types/navigation'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
-import { useAppGate } from '../../core/context/AppGateContext'
+import { useCredits } from '../../core/context/CreditsContext'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { saveDrawing, generateId } from '../../core/storage/drawingStorage'
 import { getPageById } from '../../core/data/coloringPages'
@@ -34,7 +34,7 @@ export default function FinalizationScreen() {
   const route = useRoute<FinalizationRoute>()
   const navigation = useNavigation<Nav>()
   const { pageId, snapshotDataUrl } = route.params
-  const { shouldShowRating } = useAppGate()
+  const { shouldShowRating, canEarnBySharing, earnCreditsFromShare, hasRated, shareCreditsCount } = useCredits()
   const { t } = useLanguage()
 
   const page = getPageById(pageId)
@@ -63,9 +63,21 @@ export default function FinalizationScreen() {
   }
 
   const handleShare = async () => {
+    // Limite atingido após avaliação: ir direto para assinatura
+    if (hasRated && !canEarnBySharing) {
+      navigation.navigate('Subscription' as any)
+      return
+    }
     try {
       const message = t('shareMessage').replace('{name}', finalName)
-      await Share.share({ message })
+      const result = await Share.share({ message })
+      const didShare = result.action === Share.sharedAction
+      if (didShare && canEarnBySharing) {
+        const earned = await earnCreditsFromShare()
+        if (earned) {
+          Alert.alert(t('creditEarned'), t('earnedCreditMsg'))
+        }
+      }
     } catch {
       // Cancelled
     }
@@ -79,7 +91,6 @@ export default function FinalizationScreen() {
 
   const handleDone = () => {
     if (shouldShowRating()) {
-      // Mostrar tela de avaliação antes de voltar
       navigation.navigate('Rating')
     } else {
       goHome()
@@ -88,7 +99,6 @@ export default function FinalizationScreen() {
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Ao voltar do RatingScreen (se o usuário avaliou ou fechou), ir para home
       if (saved && !shouldShowRating()) {
         setTimeout(() => goHome(), 100)
       }
@@ -164,7 +174,9 @@ export default function FinalizationScreen() {
             style={styles.shareBtn}
             onPress={handleShare}
           >
-            <Text style={styles.shareBtnText}>{t('share')}</Text>
+            <Text style={styles.shareBtnText}>
+              {canEarnBySharing ? t('shareAndEarn') : t('share')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

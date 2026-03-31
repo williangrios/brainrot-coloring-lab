@@ -16,7 +16,7 @@ import AppLogo from '../../core/components/AppLogo'
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>()
-  const { isPremium, restore } = useCredits()
+  const { isPremium, restore, credits, shareCreditsCount, hasRated } = useCredits()
   const { t, language } = useLanguage()
 
   const handleChangeLanguage = () => {
@@ -43,17 +43,34 @@ export default function ProfileScreen() {
               <Text style={styles.planBadgeText}>{t('premium')}</Text>
             </View>
           ) : (
-            <View style={styles.freeBadge}>
-              <Text style={styles.freeBadgeText}>{t('free')}</Text>
-            </View>
-          )}
-          {!isPremium && (
-            <TouchableOpacity
-              style={styles.upgradeBtn}
-              onPress={() => navigation.getParent()?.navigate('Subscription')}
-            >
-              <Text style={styles.upgradeBtnText}>{t('upgradeToPremium')}</Text>
-            </TouchableOpacity>
+            <>
+              <View style={styles.freeBadge}>
+                <Text style={styles.freeBadgeText}>{t('free')}</Text>
+              </View>
+              <View style={styles.creditsRow}>
+                <View style={styles.creditStat}>
+                  <Text style={styles.creditNumber}>{credits}</Text>
+                  <Text style={styles.creditLabel}>{t('available')}</Text>
+                </View>
+                <View style={styles.creditDivider} />
+                <View style={styles.creditStat}>
+                  <Text style={styles.creditNumber}>{shareCreditsCount}</Text>
+                  <Text style={styles.creditLabel}>{t('sharesUsed')}</Text>
+                </View>
+              </View>
+              {!hasRated && (
+                <Text style={styles.shareHint}>{t('shareToEarn')}</Text>
+              )}
+              {hasRated && shareCreditsCount < 3 && (
+                <Text style={styles.shareHint}>{t('shareCreditsHint')}</Text>
+              )}
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                onPress={() => navigation.getParent()?.navigate('Subscription')}
+              >
+                <Text style={styles.upgradeBtnText}>{t('upgradeToPremium')}</Text>
+              </TouchableOpacity>
+            </>
           )}
           <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore}>
             <Text style={styles.restoreBtnText}>{t('restorePurchases')}</Text>
@@ -75,16 +92,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {!isPremium && (
-          <View style={styles.premiumCard}>
-            <Text style={styles.premiumTitle}>{t('premiumFeatures')}</Text>
-            <Text style={styles.premiumFeature}>{t('allDifficulties')}</Text>
-            <Text style={styles.premiumFeature}>{t('noWatermark')}</Text>
-            <Text style={styles.premiumFeature}>{t('allPalettes')}</Text>
-            <Text style={styles.premiumFeature}>{t('noAds')}</Text>
-          </View>
-        )}
-
         <View style={styles.logoFooter}>
           <AppLogo size={130} />
           <Text style={styles.logoText}>Brainrot Coloring</Text>
@@ -104,12 +111,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#222',
   },
-  cardTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
+  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 },
   planBadge: {
     backgroundColor: '#00ff88',
     paddingHorizontal: 16,
@@ -128,6 +130,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   freeBadgeText: { color: '#aaa', fontSize: 14, fontWeight: '700' },
+  creditsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  creditStat: { flex: 1, alignItems: 'center' },
+  creditNumber: { color: '#00ff88', fontSize: 28, fontWeight: '800' },
+  creditLabel: { color: '#888', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  creditDivider: { width: 1, height: 36, backgroundColor: '#333' },
+  shareHint: { color: '#aaa', fontSize: 12, textAlign: 'center', lineHeight: 18, marginBottom: 12 },
   upgradeBtn: {
     backgroundColor: '#00ff88',
     paddingVertical: 12,
@@ -136,10 +144,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   upgradeBtnText: { color: '#111', fontSize: 14, fontWeight: '700' },
-  restoreBtn: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
+  restoreBtn: { paddingVertical: 10, alignItems: 'center' },
   restoreBtnText: { color: '#888', fontSize: 13 },
   settingRow: {
     flexDirection: 'row',
@@ -151,21 +156,6 @@ const styles = StyleSheet.create({
   },
   settingLabel: { color: '#ccc', fontSize: 15 },
   settingValue: { color: '#888', fontSize: 14 },
-  premiumCard: {
-    backgroundColor: '#0a2a18',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#00ff8833',
-    gap: 8,
-  },
-  premiumTitle: {
-    color: '#00ff88',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  premiumFeature: { color: '#aaffcc', fontSize: 14 },
   logoFooter: { alignItems: 'center', paddingTop: 20 },
   logoText: { color: '#444', fontSize: 16, fontWeight: '700' },
   logoVersion: { color: '#333', fontSize: 12, marginTop: 4 },

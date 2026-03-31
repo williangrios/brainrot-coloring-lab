@@ -31,11 +31,11 @@ const FILTERS: { key: 'all' | Difficulty | 'favorites'; labelKey: string }[] = [
 
 export default function BrowseScreen() {
   const navigation = useNavigation<any>()
-  const { isPremium } = useCredits()
+  const { isPremium, credits, spendCredit, canEarnBySharing } = useCredits()
   const { t } = useLanguage()
   const [filter, setFilter] = useState<'all' | Difficulty | 'favorites'>('all')
   const [favorites, setFavorites] = useState<string[]>([])
-  const [premiumModal, setPremiumModal] = useState(false)
+  const [creditsModal, setCreditsModal] = useState(false)
 
   const { pages: remotePages } = useImages()
 
@@ -74,16 +74,16 @@ export default function BrowseScreen() {
   }
 
   const handleSelectPage = async (page: ColoringPage) => {
-    if (page.isPremiumResource && !isPremium) {
-      setPremiumModal(true)
+    if (!isPremium && credits <= 0) {
+      setCreditsModal(true)
       return
     }
+    if (!isPremium) await spendCredit()
     navigation.getParent()?.navigate('Painting', { pageId: page.id })
   }
 
   const renderCard = ({ item }: { item: ColoringPage }) => {
     const isFav = favorites.includes(item.id)
-    const locked = item.isPremiumResource && !isPremium
     const diffColor = DIFFICULTY_COLORS[item.difficulty]
 
     return (
@@ -96,11 +96,6 @@ export default function BrowseScreen() {
           <View pointerEvents="none">
             <ColoringPageRenderer pageId={item.id} width={CARD_WIDTH - 16} height={CARD_WIDTH * 1.1 - 16} thumbnailUrl={item.thumbnailUrl} />
           </View>
-          {locked && (
-            <View style={styles.lockOverlay}>
-              <Text style={styles.lockIcon}>{'\uD83D\uDD12'}</Text>
-            </View>
-          )}
           <TouchableOpacity
             style={styles.favBtn}
             onPress={() => handleToggleFavorite(item.id)}
@@ -165,9 +160,17 @@ export default function BrowseScreen() {
       )}
 
       <PremiumModal
-        visible={premiumModal}
-        onClose={() => setPremiumModal(false)}
-        onSubscribe={() => setPremiumModal(false)}
+        visible={creditsModal}
+        canEarnBySharing={canEarnBySharing}
+        onClose={() => setCreditsModal(false)}
+        onGoToLibrary={() => {
+          setCreditsModal(false)
+          navigation.navigate('Library')
+        }}
+        onSubscribe={() => {
+          setCreditsModal(false)
+          navigation.getParent()?.navigate('Subscription')
+        }}
       />
     </ScreenWrapper>
   )
@@ -210,13 +213,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockIcon: { fontSize: 28 },
   favBtn: {
     position: 'absolute',
     top: 6,

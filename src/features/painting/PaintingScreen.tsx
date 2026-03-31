@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent, Alert,
 } from 'react-native'
@@ -8,9 +8,6 @@ import { RootStackParamList } from '../../core/types/navigation'
 import ScreenWrapper from '../../core/components/ScreenWrapper'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { getPageById } from '../../core/data/coloringPages'
-import { useAppGate } from '../../core/context/AppGateContext'
-import { useCredits } from '../../core/context/CreditsContext'
-import { useInterstitialAd, AdBanner, MockInterstitial } from '../../core/ads/AdService'
 import CanvasWebView, { CanvasWebViewHandle } from './canvas/CanvasWebView'
 import ToolBar from './components/ToolBar'
 import ToneSlider from './components/ToneSlider'
@@ -31,13 +28,11 @@ export default function PaintingScreen() {
 
   const page = getPageById(pageId)
 
-  // Canvas state
   const canvasRef = useRef<CanvasWebViewHandle>(null)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const pendingFinishRef = useRef(false)
 
-  // Shared state
   const [selectedTool, setSelectedTool] = useState<ToolType>('fill')
   const [selectedColor, setSelectedColor] = useState('#FF0000')
   const [baseColor, setBaseColor] = useState('#FF0000')
@@ -48,32 +43,6 @@ export default function PaintingScreen() {
   const [brushOpacity, setBrushOpacity] = useState(1.0)
   const [brushSliderDismissed, setBrushSliderDismissed] = useState(false)
   const previousColorRef = useRef(selectedColor)
-
-  // Ads
-  const { adsUnlocked, shouldShowVideoAd, recordAdShown } = useAppGate()
-  const { isPremium } = useCredits()
-  const { showAd, mockVisible, closeMock } = useInterstitialAd()
-  const [initialAdShown, setInitialAdShown] = useState(false)
-  const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Mostrar interstitial ao entrar, se anúncios desbloqueados
-  useEffect(() => {
-    if (adsUnlocked && !isPremium && !initialAdShown && shouldShowVideoAd()) {
-      setInitialAdShown(true)
-      showAd(() => recordAdShown())
-    }
-  }, [adsUnlocked]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Timer para interstitials periódicos
-  useEffect(() => {
-    if (!adsUnlocked || isPremium) return
-    adTimerRef.current = setInterval(() => {
-      if (shouldShowVideoAd()) {
-        showAd(() => recordAdShown())
-      }
-    }, 60_000)
-    return () => { if (adTimerRef.current) clearInterval(adTimerRef.current) }
-  }, [adsUnlocked, isPremium, shouldShowVideoAd, showAd, recordAdShown])
 
   const toolDef = TOOLS.find((t) => t.id === selectedTool)
   const showBrushSize = (toolDef?.hasBrushSize ?? false) && !isDrawing && !brushSliderDismissed
@@ -251,9 +220,6 @@ export default function PaintingScreen() {
           <ToneSlider baseColor={baseColor} selectedColor={selectedColor} onSelectColor={handleSelectTone} />
           <PaletteBar selectedColor={selectedColor} onSelectColor={handleSelectColor} recentColors={recentColors} />
         </View>
-
-        <AdBanner visible={!isPremium && adsUnlocked} />
-        <MockInterstitial visible={mockVisible} onClose={closeMock} />
       </View>
     </ScreenWrapper>
   )

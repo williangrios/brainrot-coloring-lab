@@ -35,14 +35,7 @@
     "plugins": [
       "expo-localization",
       "expo-asset",
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY",
-          "iosAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY"
-        }
-      ],
-      "./plugins/fix-bundle-compression"
+"./plugins/fix-bundle-compression"
     ],
     "extra": {
       "eas": {
