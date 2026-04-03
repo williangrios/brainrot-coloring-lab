@@ -60,7 +60,10 @@
       "Bash(python3 -c \"import sys,json; v=json.load\\(sys.stdin\\); print\\(''''\\\\n''''.join\\(v[-10:]\\)\\)\")",
       "Bash(node -e \"const d=require\\(''''fs''''\\).readFileSync\\(0,''''utf8''''\\); const v=JSON.parse\\(d\\); v.slice\\(-10\\).forEach\\(x=>console.log\\(x\\)\\)\")",
       "Bash(node:*)",
-      "Bash(grep -E \"\\(App|app|index\\)\\\\.tsx$\")"
+      "Bash(grep -E \"\\(App|app|index\\)\\\\.tsx$\")",
+      "Bash(file /mnt/c/Users/User/projetos/brainrot-coloring-lab/assets/*.png)",
+      "Bash(identify /mnt/c/Users/User/projetos/brainrot-coloring-lab/assets/*.png)",
+      "Bash(cat /mnt/c/Users/User/projetos/brainrot-coloring-lab/patches/*.patch)"
     ]
   }
 }

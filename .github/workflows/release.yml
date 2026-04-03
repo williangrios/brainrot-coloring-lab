@@ -1,12 +1,9 @@
 name: Build & Publish to Stores
 
-# Dispara quando criar uma tag de versão (ex: v1.0.0, v1.2.3)
 on:
   push:
     tags:
       - 'v*'
-
-# Também pode disparar manualmente pelo GitHub
   workflow_dispatch:
     inputs:
       platform:
@@ -19,15 +16,12 @@ on:
           - android
           - ios
 
-env:
-  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
 jobs:
-  # ─── Build Android ─────────────────────────────────────────
+  # ─── Build Android ────────────────────────────────
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.platform != 'ios' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform != 'ios' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,6 +32,12 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
       - name: Install dependencies
         run: npm ci
 
@@ -46,21 +46,38 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Build Android (production)
-        run: eas build --platform android --profile production --non-interactive
 
       - name: Decode Google Service Account
-        run: echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}" | base64 -d > google-service-account.json
+        run: echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' | base64 --decode > google-service-account.json
 
-      - name: Submit to Google Play
-        run: eas submit --platform android --profile production --non-interactive --latest
+      - name: Build Android locally
+        run: eas build --platform android --profile production --local --non-interactive --output ./BrainrotColoring.aab
 
-  # ─── Build iOS ─────────────────────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrainrotColoring-Android
+          path: ./BrainrotColoring.aab
+
+      - name: Download instructions
+        run: |
+          echo "============================================"
+          echo "  BUILD ANDROID CONCLUIDO"
+          echo "============================================"
+          echo ""
+          echo "Para baixar o AAB:"
+          echo "1. Acesse a aba Actions no GitHub"
+          echo "2. Clique neste run"
+          echo "3. Role ate a secao Artifacts"
+          echo "4. Clique em 'BrainrotColoring-Android' para baixar"
+          echo ""
+          echo "============================================"
+
+  # ─── Build iOS ────────────────────────────────────
   build-ios:
     name: Build iOS
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.platform != 'android' }}
+    runs-on: macos-latest
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform != 'android' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,11 +97,25 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS (production)
-        run: eas build --platform ios --profile production --non-interactive
+      - name: Build iOS locally
+        run: eas build --platform ios --profile production --local --non-interactive --output ./BrainrotColoring.ipa
 
-      - name: Submit to App Store
-        run: eas submit --platform ios --profile production --non-interactive --latest
-        env:
-          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
-          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrainrotColoring-iOS
+          path: ./BrainrotColoring.ipa
+
+      - name: Download instructions
+        run: |
+          echo "============================================"
+          echo "  BUILD IOS CONCLUIDO"
+          echo "============================================"
+          echo ""
+          echo "Para baixar o IPA:"
+          echo "1. Acesse a aba Actions no GitHub"
+          echo "2. Clique neste run"
+          echo "3. Role ate a secao Artifacts"
+          echo "4. Clique em 'BrainrotColoring-iOS' para baixar"
+          echo ""
+          echo "============================================"

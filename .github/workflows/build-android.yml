@@ -33,10 +33,24 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android locally
-        run: eas build --platform android --profile production --local --output ./BrainrotColoring.aab
+        run: eas build --platform android --profile production --local --non-interactive --output ./BrainrotColoring.aab
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: BrainrotColoring-Android
           path: ./BrainrotColoring.aab
+
+      - name: Download instructions
+        run: |
+          echo "============================================"
+          echo "  BUILD ANDROID CONCLUIDO"
+          echo "============================================"
+          echo ""
+          echo "Para baixar o AAB:"
+          echo "1. Acesse a aba Actions no GitHub"
+          echo "2. Clique neste run"
+          echo "3. Role ate a secao Artifacts"
+          echo "4. Clique em 'BrainrotColoring-Android' para baixar"
+          echo ""
+          echo "============================================"
