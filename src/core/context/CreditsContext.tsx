@@ -50,7 +50,7 @@ const CreditsContext = createContext<CreditsContextType>({
   packages: [],
   purchase: async () => false,
   restore: async () => false,
-  credits: 3,
+  credits: 10,
   hasRated: false,
   shareCreditsCount: 0,
   canEarnBySharing: true,
@@ -66,7 +66,7 @@ export function CreditsProvider({ children }: { children: React.ReactNode }) {
   const [isPremium, setIsPremium] = useState(false)
   const [packages, setPackages] = useState<PurchasesPackage[]>([])
   const [creditsData, setCreditsData] = useState<CreditsData>({
-    credits: 3,
+    credits: 10,
     hasRated: false,
     shareCreditsCount: 0,
   })

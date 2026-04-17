@@ -9,7 +9,7 @@ export interface CreditsData {
 }
 
 const DEFAULTS: CreditsData = {
-  credits: 3,
+  credits: 10,
   hasRated: false,
   shareCreditsCount: 0,
 }

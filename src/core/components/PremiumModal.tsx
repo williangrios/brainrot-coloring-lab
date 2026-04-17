@@ -69,6 +69,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   mainBtnText: { color: '#111', fontSize: 17, fontWeight: '800' },
-  closeBtn: { paddingVertical: 10 },
-  closeBtnText: { color: '#666', fontSize: 14 },
+  closeBtn: { paddingVertical: 16, paddingHorizontal: 32 },
+  closeBtnText: { color: '#888', fontSize: 16 },
 })

@@ -16,6 +16,5 @@ export type MainTabParamList = {
   Home: undefined
   Browse: undefined
   Library: undefined
-  Explore: undefined
   Profile: undefined
 }

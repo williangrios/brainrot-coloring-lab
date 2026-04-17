@@ -2,13 +2,12 @@ import React from 'react'
 import { Platform } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Home, Search, BookOpen, Compass, User } from 'lucide-react-native'
+import { Home, Search, BookOpen, User } from 'lucide-react-native'
 import { MainTabParamList } from '../core/types/navigation'
 import { useLanguage } from '../i18n/LanguageContext'
 import HomeScreen from '../features/onboarding/HomeScreen'
 import BrowseScreen from '../features/browse/BrowseScreen'
 import LibraryScreen from '../features/library/LibraryScreen'
-import ExploreScreen from '../features/explore/ExploreScreen'
 import ProfileScreen from '../features/profile/ProfileScreen'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
@@ -38,8 +37,6 @@ export default function TabNavigator() {
         options={{ tabBarLabel: t('browse'), tabBarIcon: ({ color, size }) => <Search color={color} size={size} /> }} />
       <Tab.Screen name="Library" component={LibraryScreen}
         options={{ tabBarLabel: t('library'), tabBarIcon: ({ color, size }) => <BookOpen color={color} size={size} /> }} />
-      <Tab.Screen name="Explore" component={ExploreScreen}
-        options={{ tabBarLabel: t('explore'), tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
       <Tab.Screen name="Profile" component={ProfileScreen}
         options={{ tabBarLabel: t('profile'), tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }} />
     </Tab.Navigator>
